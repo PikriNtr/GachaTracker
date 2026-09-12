@@ -12,7 +12,7 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 1. **Install Dependencies**
    ```bash
