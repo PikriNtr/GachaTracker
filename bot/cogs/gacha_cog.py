@@ -47,16 +47,19 @@ class GachaCog(commands.Cog):
             repo.save_account(discord_id=discord_id, game_id="wuthering_waves", player_id=player_id)
             new_count = repo.save_pulls(discord_id=discord_id, game_id="wuthering_waves", player_id=player_id, pulls=pulls)
 
-            summary = calculate_pity_summary(repo.get_pulls(discord_id, "wuthering_waves"))
+            all_db_pulls = repo.get_pulls(discord_id, "wuthering_waves")
+            summary = calculate_pity_summary(all_db_pulls)
             p1 = summary.get("1", {})
+            total_db = len(all_db_pulls)
+            guaranteed_str = " ✅ Guaranteed" if p1.get("is_guaranteed") else ""
 
             embed = discord.Embed(
                 title="Convene History Synced Successfully",
                 description=(
                     f"Player ID: **{player_id}**\n"
                     f"New pulls imported: **{new_count}**\n"
-                    f"Total recorded pulls: **{len(pulls)}**\n\n"
-                    f"Current Featured Resonator Pity: **{p1.get('current_pity', 0)} / 80**"
+                    f"Total recorded pulls: **{total_db}**\n\n"
+                    f"Current Featured Resonator Pity: **{p1.get('current_pity', 0)} / 80**{guaranteed_str}"
                 ),
                 color=C_GREEN
             )
