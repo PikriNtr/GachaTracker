@@ -4,15 +4,21 @@ from typing import Dict, Any, List, Tuple
 
 CARD_POOL_TYPES = ["1", "2", "3", "4", "5", "6", "7"]
 
+
 class WuWaAPIError(Exception):
     pass
 
+
 def parse_convene_url(url: str) -> Dict[str, str]:
-    """Parses Convene URL into query parameters required by Kuro Games API."""
+    """Parses Convene URL into query parameters required by Kuro Games API.
+    Handles both standard query strings and hash-route URLs (e.g. #/record?...).
+    """
     raw_url = url.strip().strip("<>\"'")
     parsed = urllib.parse.urlparse(raw_url)
+
+    # Handle hash-route URLs: the query lives after the '?' in the fragment
     query_str = parsed.query
-    if not query_str and "?" in raw_url:
+    if not query_str and "#" in raw_url and "?" in raw_url:
         query_str = raw_url.split("?", 1)[1]
 
     qs = urllib.parse.parse_qs(query_str)
@@ -24,11 +30,13 @@ def parse_convene_url(url: str) -> Dict[str, str]:
                 return vals[0]
         return default
 
-    player_id = get_val(["player_id", "playerId"])
-    record_id = get_val(["record_id", "recordId"])
-    svr_id = get_val(["svr_id", "serverId"])
-    lang = get_val(["lang", "languageCode"], "en")
-    gacha_type = get_val(["gacha_type", "cardPoolType"], "1")
+    player_id   = get_val(["player_id",   "playerId"])
+    record_id   = get_val(["record_id",   "recordId"])
+    svr_id      = get_val(["svr_id",      "serverId"])
+    svr_area    = get_val(["svr_area"],    "global")
+    lang        = get_val(["lang",        "languageCode"], "en")
+    gacha_type  = get_val(["gacha_type",  "cardPoolType"], "1")
+    resources_id = get_val(["resources_id"])
 
     if not player_id:
         raise WuWaAPIError("Missing required URL parameter: 'player_id'. Please copy a fresh Convene URL.")
@@ -44,64 +52,90 @@ def parse_convene_url(url: str) -> Dict[str, str]:
         api_domain = "https://gmserver-api.aki-game2.net"
 
     return {
-        "api_domain": api_domain,
-        "player_id": player_id,
-        "record_id": record_id,
-        "svr_id": svr_id,
-        "lang": lang,
-        "gacha_type": gacha_type,
+        "api_domain":   api_domain,
+        "player_id":    player_id,
+        "record_id":    record_id,
+        "svr_id":       svr_id,
+        "svr_area":     svr_area,
+        "lang":         lang,
+        "gacha_type":   gacha_type,
+        "resources_id": resources_id or "",
     }
 
-async def fetch_card_pool(session: aiohttp.ClientSession, params: Dict[str, str], card_pool_type: str) -> List[Dict[str, Any]]:
-    """Queries Kuro Games API for pulls belonging to a specific banner."""
+
+async def fetch_card_pool(
+    session: aiohttp.ClientSession,
+    params: Dict[str, str],
+    card_pool_type: str,
+) -> List[Dict[str, Any]]:
+    """Queries Kuro Games API for pulls belonging to a specific banner.
+    Tries POST first (official method), falls back to GET with query string.
+    """
     api_url = f"{params['api_domain']}/gacha/record/query"
     payload = {
-        "cardPoolId": params["record_id"],
+        "cardPoolId":   params["record_id"],
         "cardPoolType": int(card_pool_type),
         "languageCode": params["lang"],
-        "playerId": params["player_id"],
-        "recordId": params["record_id"],
-        "serverId": params["svr_id"],
+        "playerId":     params["player_id"],
+        "recordId":     params["record_id"],
+        "serverId":     params["svr_id"],
     }
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
+        "User-Agent":   "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
     }
 
+    # --- POST (primary) ---
     try:
-        async with session.post(api_url, json=payload, headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+        async with session.post(
+            api_url, json=payload, headers=headers,
+            timeout=aiohttp.ClientTimeout(total=15),
+        ) as resp:
             if resp.status == 200:
                 data = await resp.json(content_type=None)
-                if data and data.get("code") == 0 and "data" in data and isinstance(data["data"], list):
+                if data and data.get("code") == 0 and isinstance(data.get("data"), list):
                     return data["data"]
     except Exception:
         pass
 
-    # Fallback GET query string if POST fails
+    # --- GET fallback (includes svr_area & resources_id for full record coverage) ---
     try:
         qs = (
             f"svr_id={params['svr_id']}&player_id={params['player_id']}&lang={params['lang']}"
-            f"&gacha_type={card_pool_type}&record_id={params['record_id']}&cardPoolType={card_pool_type}"
+            f"&gacha_type={card_pool_type}&svr_area={params.get('svr_area', '')}"
+            f"&record_id={params['record_id']}&resources_id={params.get('resources_id', '')}"
+            f"&cardPoolType={card_pool_type}"
         )
-        async with session.get(f"{api_url}?{qs}", headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+        async with session.get(
+            f"{api_url}?{qs}", headers=headers,
+            timeout=aiohttp.ClientTimeout(total=15),
+        ) as resp:
             if resp.status == 200:
                 data = await resp.json(content_type=None)
-                if data and data.get("code") == 0 and "data" in data and isinstance(data["data"], list):
+                if data and data.get("code") == 0 and isinstance(data.get("data"), list):
                     return data["data"]
     except Exception:
         pass
 
     return []
 
-async def fetch_all_convene_history(url: str) -> Tuple[str, List[Dict[str, Any]]]:
-    """Fetches full convene history across all card pool types. Returns (player_id, raw_records)."""
+
+async def fetch_all_convene_history(url: str) -> Tuple[str, Dict[str, List[Dict[str, Any]]]]:
+    """Fetches full convene history across all card pool types.
+
+    Returns:
+        (player_id, pulls_by_pool)  — pulls_by_pool maps pool_type str → list of raw dicts.
+        Raw records from the API arrive newest-first; we preserve that order here
+        so callers can reverse when needed.
+    """
     params = parse_convene_url(url)
     player_id = params["player_id"]
-    all_records = []
+    pulls_by_pool: Dict[str, List[Dict[str, Any]]] = {}
 
     async with aiohttp.ClientSession() as session:
         for pool_type in CARD_POOL_TYPES:
             pool_records = await fetch_card_pool(session, params, pool_type)
-            all_records.extend(pool_records)
+            if pool_records:
+                pulls_by_pool[pool_type] = pool_records
 
-    return player_id, all_records
+    return player_id, pulls_by_pool
