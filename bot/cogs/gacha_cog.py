@@ -168,6 +168,63 @@ class GachaCog(commands.Cog):
 
         await interaction.followup.send(embed=embed, file=file)
 
+    @app_commands.command(name="simulate", description="Run 10,000 Monte Carlo simulations to calculate your statistical luck percentile")
+    async def simulate_cmd(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        discord_id = str(interaction.user.id)
+        account = repo.get_account_by_discord_id(discord_id, "wuthering_waves")
+        pulls = repo.get_pulls(discord_id, "wuthering_waves")
+
+        if not account or not pulls:
+            await interaction.followup.send(embed=no_data_embed())
+            return
+
+        from analytics import run_monte_carlo_simulation, generate_simulation_chart
+        sim_res = run_monte_carlo_simulation(pulls, num_sims=10000)
+        chart_buf = generate_simulation_chart(sim_res, account.player_id)
+        file = discord.File(fp=chart_buf, filename="simulation_chart.png")
+
+        pct = sim_res["luck_percentile"]
+        rating = sim_res["luck_rating"]
+        u_avg = sim_res["user_avg_pity"]
+        s_avg = sim_res["sim_mean_pity"]
+
+        embed = discord.Embed(
+            title=f"Monte Carlo Luck Analysis  Player {account.player_id}",
+            description=f"Rating: **{rating}**",
+            color=C_GREEN if pct >= 50 else C_GOLD
+        )
+        embed.add_field(
+            name="Luck Percentile",
+            value=f"**{pct}%** luckier than simulated players",
+            inline=True
+        )
+        embed.add_field(
+            name="Your Avg Pity",
+            value=f"**{u_avg:.1f}** pulls / 5-star",
+            inline=True
+        )
+        embed.add_field(
+            name="Simulated Avg Pity",
+            value=f"**{s_avg:.1f}** pulls / 5-star",
+            inline=True
+        )
+        embed.add_field(
+            name="50/50 Performance",
+            value=f"Won: **{sim_res['user_won_5050']}**  •  Lost: **{sim_res['user_lost_5050']}**",
+            inline=False
+        )
+        embed.add_field(
+            name="Simulation Scope",
+            value=f"Evaluated across **10,000** simulated player histories in **{sim_res['elapsed_sec']}s**.",
+            inline=False
+        )
+        embed.set_image(url="attachment://simulation_chart.png")
+        embed.set_footer(text=FOOTER)
+
+        await interaction.followup.send(embed=embed, file=file)
+
 async def setup(bot: commands.Bot):
     await bot.add_cog(GachaCog(bot))
+
 
