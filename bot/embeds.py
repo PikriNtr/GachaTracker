@@ -50,7 +50,9 @@ def help_embed() -> discord.Embed:
             "`/stats`         Lifetime pull statistics and Astrite investment\n"
             "`/history`       Full 5-star pull log with 50/50 records\n"
             "`/chart`         Generate visual pity distribution graph image\n"
+            "`/simulate`      Run 10,000 Monte Carlo simulations to get your Luck Percentile\n"
             "`/ping`          Bot latency"
+
 
         ),
         inline=False
