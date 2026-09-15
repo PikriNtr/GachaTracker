@@ -1,6 +1,7 @@
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
+
 from core.game import GachaGame
-from core.models import Pull, Banner
+from core.models import Banner, Pull
 from games.genshin_impact.banners import GENSHIN_BANNERS
 from games.genshin_impact.parser import parse_genshin_records
 from games.hoyoverse_api import fetch_all_history
