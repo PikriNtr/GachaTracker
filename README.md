@@ -102,6 +102,7 @@ All gacha commands accept an optional `game` option (Wuthering Waves / Genshin I
 | `/calculate [game]` | Calculate Astrite/Primogem/Stellar Jade cost & 50/50 scenarios (best, average, worst case) |
 | `/stats [game]` | View lifetime pull statistics, currency investment, and 5-star rates |
 | `/history [game] [banner]` | Full 5-star pull log with 50/50 win/loss records |
+| `/profile` | Unified cross-game view: per-game pulls/5★/pity + lifetime totals, with comparison chart |
 | `/chart [game] [type]` | Visual charts: Pity History, Pull Timeline, Rarity Distribution, Banner Comparison |
 | `/simulate [game]` | Run 10,000 Monte Carlo simulations to get your Luck Percentile |
 | `/help` | Show bot commands and setup guide |
