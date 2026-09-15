@@ -113,6 +113,10 @@ def help_embed() -> discord.Embed:
             "`/history [game] [banner]`  Full 5-star pull log with 50/50 records\n"
             "`/chart [game]`         Generate visual pity distribution graph image\n"
             "`/simulate [game]`      Run 10,000 Monte Carlo simulations to get your Luck Percentile\n"
+            "`/profile`               Unified cross-game view with lifetime totals\n"
+            "`/banners [game]`        Current + upcoming banners per pool\n"
+            "`/bannerset [game]`      Add/update a banner schedule (advanced)\n"
+            "`/forget [game]`         Delete your stored data for a game\n"
             "`/ping`                 Bot latency"
         ),
         inline=False
