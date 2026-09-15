@@ -14,6 +14,7 @@ from analytics import (
 from bot.embeds import (
     C_GOLD,
     C_GREEN,
+    C_GREY,
     C_RED,
     FOOTER,
     calculate_embed,
@@ -37,6 +38,36 @@ GAME_CHOICES = [
 
 def _plugin_for(game_id: str):
     return registry.get(game_id)
+
+
+class ForgetConfirmView(discord.ui.View):
+    """Ephemeral confirm/cancel for /forget. Only the invoker can click."""
+
+    def __init__(self, invoker_id: int):
+        super().__init__(timeout=30)
+        self.invoker_id = invoker_id
+        self.confirmed = False
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id != self.invoker_id:
+            await interaction.response.send_message("This confirmation isn't yours.", ephemeral=True)
+            return False
+        return True
+
+    @discord.ui.button(label="Delete my data", style=discord.ButtonStyle.danger)
+    async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button):
+        self.confirmed = True
+        button.disabled = True
+        self.cancel_button.disabled = True
+        await interaction.response.defer()
+        self.stop()
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        button.disabled = True
+        self.confirm.disabled = True
+        await interaction.response.defer()
+        self.stop()
 
 
 class GachaCog(commands.Cog):
@@ -275,6 +306,63 @@ class GachaCog(commands.Cog):
 
         embed = history_embed(account.player_id, summary, b_name, p5_hist)
         await interaction.response.send_message(embed=embed)
+
+    # ------------------------------------------------------------------
+    # /forget
+    # ------------------------------------------------------------------
+    @app_commands.command(name="forget", description="Delete your stored gacha data for a game (private, irreversible)")
+    @app_commands.describe(game="Which game's data to delete")
+    @app_commands.choices(game=GAME_CHOICES)
+    async def forget_cmd(self, interaction: discord.Interaction,
+                         game: Optional[app_commands.Choice[str]] = None):
+        game_id = game.value if game else "wuthering_waves"
+        plugin = await self._resolve_game(interaction, game_id, ephemeral=True)
+        if plugin is None:
+            return
+
+        discord_id = str(interaction.user.id)
+        account = repo.get_account_by_discord_id(discord_id, game_id)
+        pulls = repo.get_pulls(discord_id, game_id)
+        if not account or not pulls:
+            e = discord.Embed(
+                title="Nothing to Delete",
+                description=f"You have no stored {plugin.name} data.",
+                color=C_GREY,
+            )
+            e.set_footer(text=FOOTER)
+            await interaction.response.send_message(embed=e, ephemeral=True)
+            return
+
+        view = ForgetConfirmView(interaction.user.id)
+        e = discord.Embed(
+            title=f"Delete {plugin.name} Data?",
+            description=(
+                f"This permanently removes **{len(pulls):,}** pulls and your account link "
+                f"for {plugin.name}.\n\n**This cannot be undone.**"
+            ),
+            color=C_RED,
+        )
+        e.set_footer(text=FOOTER)
+        await interaction.response.send_message(embed=e, view=view, ephemeral=True)
+
+        await view.wait()
+        if view.confirmed:
+            removed = repo.delete_user_data(discord_id, game_id)
+            done = discord.Embed(
+                title="Data Deleted",
+                description=f"Removed **{removed:,}** {plugin.name} pulls. Re-import any time with `/import`.",
+                color=C_GREEN,
+            )
+            done.set_footer(text=FOOTER)
+            await interaction.followup.send(embed=done, ephemeral=True)
+        else:
+            cancelled = discord.Embed(
+                title="Cancelled",
+                description="Your data was not touched.",
+                color=C_GREY,
+            )
+            cancelled.set_footer(text=FOOTER)
+            await interaction.followup.send(embed=cancelled, ephemeral=True)
 
     # ------------------------------------------------------------------
     # /chart
