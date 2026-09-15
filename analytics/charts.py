@@ -1,10 +1,14 @@
 import io
+
 import matplotlib
+
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 from typing import List
+
+import matplotlib.pyplot as plt
+
+from analytics.pity import DEFAULT_GAME, GAME_BANNER_CONFIGS, calculate_pity_summary
 from core.models import Pull
-from analytics.pity import calculate_pity_summary, GAME_BANNER_CONFIGS, DEFAULT_GAME
 
 
 def generate_pity_chart(pulls: List[Pull], player_id: str, game_id: str = DEFAULT_GAME,
@@ -60,7 +64,7 @@ def generate_pity_chart(pulls: List[Pull], player_id: str, game_id: str = DEFAUL
     ax.axhline(y=soft_pity, color='#E8B84B', linestyle='--', alpha=0.7, label=f'Soft Pity (~{soft_pity})')
     ax.axhline(y=hard_pity, color='#E05252', linestyle=':', alpha=0.7, label=f'Hard Pity ({hard_pity})')
 
-    for bar, pity_val in zip(bars, pities):
+    for bar, pity_val in zip(bars, pities, strict=False):
         height = bar.get_height()
         ax.annotate(f'{pity_val}',
                     xy=(bar.get_x() + bar.get_width() / 2, height),
