@@ -1,12 +1,16 @@
 import io
 import time
-import numpy as np
+
 import matplotlib
+import numpy as np
+
 matplotlib.use('Agg')
+from typing import Any, Dict, List
+
 import matplotlib.pyplot as plt
-from typing import List, Dict, Any, Tuple
+
+from analytics.pity import DEFAULT_GAME, GAME_BANNER_CONFIGS, calculate_pity_summary
 from core.models import Pull
-from analytics.pity import calculate_pity_summary, GAME_BANNER_CONFIGS, DEFAULT_GAME
 
 # Per-game base probability models for the Monte Carlo engine.
 # base          : 5★ chance per pull before soft pity
@@ -50,7 +54,6 @@ def run_monte_carlo_simulation(pulls: List[Pull], num_sims: int = 10000,
     p1 = summary.get(featured_pool, {})
     history_5star = p1.get("history_5star", [])
 
-    user_total_pulls = p1.get("total_pulls", len(pulls))
     user_5star_count = len(history_5star)
     user_won_5050 = p1.get("won_5050", 0)
     user_lost_5050 = p1.get("lost_5050", 0)
