@@ -116,3 +116,20 @@ def test_games_are_isolated(repo):
                                 "2025-01-01 00:00:00", "2025-02-01 00:00:00", "u")
     assert repo.get_banner_windows("wuthering_waves") == []
     assert repo.get_active_banners("wuthering_waves", now="2025-01-15") == {}
+
+
+def test_pool_choices_valid_and_within_discord_limit():
+    """Dropdown pool picker: <=25 entries, unique values, every pool covered."""
+    from analytics.pity import GAME_BANNER_CONFIGS
+    from bot.cogs.banners_cog import POOL_CHOICES, _resolve_pool_choice
+
+    assert len(POOL_CHOICES) <= 25
+    values = [c.value for c in POOL_CHOICES]
+    assert len(set(values)) == len(values)
+    covered = set()
+    for choice in POOL_CHOICES:
+        game_id, pool_id = _resolve_pool_choice(choice.value)
+        assert pool_id in GAME_BANNER_CONFIGS[game_id]["pools"], choice.value
+        covered.add((game_id, pool_id))
+    expected = {(g, p) for g, cfg in GAME_BANNER_CONFIGS.items() for p in cfg["pools"]}
+    assert covered == expected
