@@ -1,4 +1,4 @@
-# ✦ GachaTracker
+# GachaTracker
 
 > A modular, multi-game gacha history tracker and analytics framework for Discord.
 
@@ -13,33 +13,35 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 
 ---
 
-## 🌟 Features
+## Features
 
-- 🧩 **Modular Plugin Architecture**: Game-specific mechanics (API fetching, pity rules, banner pools) are decoupled from the core engine.
-- 📊 **Visual Distribution Graphs (`/chart`)**: Generates custom dark-themed pity bar graphs with color-coded 50/50 win/loss markers and soft/hard pity thresholds.
-- 🎯 **Accurate Pity & 50/50 Tracking**: Automatically tracks current pity, total pulls, and 50/50 win/loss history (identifying standard vs. featured Resonators).
-- 💰 **Astrite & Pull Cost Calculator (`/calculate`)**: Calculates best-case, average-case, and worst-case pull and Astrite cost scenarios.
-- 💾 **Idempotent Local Storage**: Merges history records into a local SQLite database without creating duplicate entries.
-- 🎙️ **24/7 Voice Channel Connection**: Auto-connects and auto-reconnects to designated Discord Voice Channels with self-deafen bandwidth optimization.
-- 🎨 **Clean & Emoji-Free Interface**: Modern, professional Discord embeds formatted with ASCII text tables.
+* **Modular Plugin Architecture**: Game-specific mechanics (API fetching, pity rules, banner pools) are decoupled from the core engine.
+* **Visual Distribution Graphs (`/chart`)**: Generates custom dark-themed pity bar graphs with color-coded 50/50 win/loss markers and soft/hard pity thresholds.
+* **Accurate Pity & 50/50 Tracking**: Automatically tracks current pity, total pulls, and 50/50 win/loss history (identifying standard vs. featured Resonators).
+* **Astrite & Pull Cost Calculator (`/calculate`)**: Calculates best-case, average-case, and worst-case pull and Astrite cost scenarios.
+* **Idempotent Local Storage**: Merges history records into a local SQLite database without creating duplicate entries.
+* **24/7 Voice Channel Connection**: Auto-connects and auto-reconnects to designated Discord Voice Channels with self-deafen bandwidth optimization.
+* **Clean & Emoji-Free Interface**: Modern, professional Discord embeds formatted with ASCII text tables.
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```text
                         GachaTracker Framework
-                                  │
-         ┌────────────────────────┼────────────────────────┐
-         ▼                        ▼                        ▼
+                                  |
+         +------------------------+------------------------+
+         |                        |                        |
+         v                        v                        v
   Discord Interface          Core Engine             SQLite Database
 (Slash Commands & Cogs)   (Pity, Analytics, Calc)    (Idempotent Storage)
-                                  │
-                                  ▼
+                                  |
+                                  v
                             Plugin Registry
-                                  │
-         ┌────────────────────────┼────────────────────────┐
-         ▼                        ▼                        ▼
+                                  |
+         +------------------------+------------------------+
+         |                        |                        |
+         v                        v                        v
   Wuthering Waves          Genshin Impact          Honkai: Star Rail
    (Plugin)                  (Plugin)                  (Plugin)
 ```
@@ -52,27 +54,32 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
-- **Python 3.10+**
-- **Git**
+
+* **Python 3.10+**
+* **Git**
 
 ### Installation
 
 1. **Clone the Repository**
+
    ```bash
    git clone https://github.com/your-username/discord-tracker.git
    cd discord-tracker/gacha_tracker
    ```
 
 2. **Install Dependencies**
+
    ```bash
    pip install -r requirements.txt
    ```
 
 3. **Configure Environment Variables**
+
    Copy `.env.example` to `.env` in the repo root and fill it in:
+
    ```env
    # Discord Bot Token from https://discord.com/developers/applications
    DISCORD_TOKEN=your_bot_token_here
@@ -85,36 +92,37 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
    ```
 
 4. **Launch the Bot**
+
    ```bash
    python main.py
    ```
 
 ---
 
-## 📜 Discord Slash Commands
+## Discord Slash Commands
 
 All gacha commands accept an optional `game` option (Wuthering Waves / Genshin Impact / Honkai: Star Rail); they default to Wuthering Waves.
 
-| Command | Description |
-|---|---|
-| `/import <url> [game]` | Sync your gacha history privately using your in-game log URL; shows deltas (new pulls, new 5★/4★, pity before→after) |
-| `/pity [game]` | Check current pity count and 50/50 guarantee status for all banners |
-| `/calculate [game]` | Calculate Astrite/Primogem/Stellar Jade cost & 50/50 scenarios (best, average, worst case) |
-| `/stats [game]` | View lifetime pull statistics, currency investment, and 5-star rates |
-| `/history [game] [banner]` | Full 5-star pull log with 50/50 win/loss records |
-| `/profile` | Unified cross-game view: per-game pulls/5★/pity + lifetime totals, with comparison chart |
-| `/chart [game] [type]` | Visual charts: Pity History, Pull Timeline, Rarity Distribution, Banner Comparison |
-| `/simulate [game]` | Run 10,000 Monte Carlo simulations to get your Luck Percentile |
-| `/banners [game]` | Current + upcoming banners per pool (community-maintained schedule) |
-| `/bannerset [game]` | Add/update a banner schedule window with start/end times |
-| `/bannerremove [game]` | Remove banner schedule windows for a pool |
-| `/forget [game]` | Delete your stored data for a game |
-| `/help` | Show bot commands and setup guide |
-| `/ping` | Check bot latency and operational status |
+| Command                    | Description                                                                                                          |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `/import <url> [game]`     | Sync your gacha history privately using your in-game log URL; shows deltas (new pulls, new 5★/4★, pity before→after) |
+| `/pity [game]`             | Check current pity count and 50/50 guarantee status for all banners                                                  |
+| `/calculate [game]`        | Calculate Astrite/Primogem/Stellar Jade cost & 50/50 scenarios (best, average, worst case)                           |
+| `/stats [game]`            | View lifetime pull statistics, currency investment, and 5-star rates                                                 |
+| `/history [game] [banner]` | Full 5-star pull log with 50/50 win/loss records                                                                     |
+| `/profile`                 | Unified cross-game view: per-game pulls/5★/pity + lifetime totals, with comparison chart                             |
+| `/chart [game] [type]`     | Visual charts: Pity History, Pull Timeline, Rarity Distribution, Banner Comparison                                   |
+| `/simulate [game]`         | Run 10,000 Monte Carlo simulations to get your Luck Percentile                                                       |
+| `/banners [game]`          | Current + upcoming banners per pool (community-maintained schedule)                                                  |
+| `/bannerset [game]`        | Add/update a banner schedule window with start/end times                                                             |
+| `/bannerremove [game]`     | Remove banner schedule windows for a pool                                                                            |
+| `/forget [game]`           | Delete your stored data for a game                                                                                   |
+| `/help`                    | Show bot commands and setup guide                                                                                    |
+| `/ping`                    | Check bot latency and operational status                                                                             |
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 discord-tracker/
@@ -173,18 +181,18 @@ discord-tracker/
 
 ---
 
-## 🗺️ Roadmap Highlights
+## Roadmap Highlights
 
-- [x] **v0.1 — WuWa MVP & Core Abstraction**: Modular plugin framework, SQLite persistence, pity engine, Discord bot.
-- [x] **v0.2 — Advanced Analytics & 50/50 Calculator**: Astrite cost calculator, standard 5-star detection, 50/50 guarantee tracking.
-- [x] **v0.3 — Visual Charting & Voice Support**: Matplotlib image graph generation (`/chart`), 24/7 Voice Channel auto-reconnect.
-- [x] **v0.4 — Monte Carlo Luck Simulation**: Compare player pity distributions against 10,000 simulated players to calculate statistical percentiles.
-- [x] **v0.5 — Multi-Game Plugins**: Genshin Impact & Honkai: Star Rail plugins via the registry; per-game probability models (`/simulate`), game-aware charts and embeds, shared HoYoverse API client.
-- [ ] **v0.6 — Web Dashboard & REST API**: Standalone FastAPI service and interactive web dashboard.
+* [x] **v0.1 — WuWa MVP & Core Abstraction**: Modular plugin framework, SQLite persistence, pity engine, Discord bot.
+* [x] **v0.2 — Advanced Analytics & 50/50 Calculator**: Astrite cost calculator, standard 5-star detection, 50/50 guarantee tracking.
+* [x] **v0.3 — Visual Charting & Voice Support**: Matplotlib image graph generation (`/chart`), 24/7 Voice Channel auto-reconnect.
+* [x] **v0.4 — Monte Carlo Luck Simulation**: Compare player pity distributions against 10,000 simulated players to calculate statistical percentiles.
+* [x] **v0.5 — Multi-Game Plugins**: Genshin Impact & Honkai: Star Rail plugins via the registry; per-game probability models (`/simulate`), game-aware charts and embeds, shared HoYoverse API client.
+* [ ] **v0.6 — Web Dashboard & REST API**: Standalone FastAPI service and interactive web dashboard.
 
 ---
 
-## 🌐 REST API (Phase 11)
+## REST API (Phase 11)
 
 The core is also exposed as a standalone HTTP service — same engines, same SQLite DB:
 
@@ -195,31 +203,30 @@ set API_KEY=your-secret-key       # required for write endpoints
 uvicorn api.main:app --port 8000  # from gacha_tracker/
 ```
 
-| Endpoint | Description |
-|---|---|
-| `GET /games` | Registered games + banner configs |
-| `GET /accounts/{id}` | A user's game accounts + pull counts |
-| `GET /accounts/{id}/pulls/{game}` | Pull history (paginated; filter by pool/rarity) |
-| `GET /accounts/{id}/pity/{game}` | Per-banner pity + 50/50 state |
-| `GET /accounts/{id}/stats/{game}` | Deep statistics (distribution, early 5★, type split) |
-| `GET /accounts/{id}/profile` | Unified cross-game profile |
-| `GET /banners/{game}` | Active + upcoming banner schedule |
-| `POST /accounts/{id}/import/{game}` | Import from a gacha URL — **requires `X-API-Key`** |
-| `DELETE /accounts/{id}/{game}` | Delete a user's data for a game — **requires `X-API-Key`** |
+| Endpoint                            | Description                                                |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `GET /games`                        | Registered games + banner configs                          |
+| `GET /accounts/{id}`                | A user's game accounts + pull counts                       |
+| `GET /accounts/{id}/pulls/{game}`   | Pull history (paginated; filter by pool/rarity)            |
+| `GET /accounts/{id}/pity/{game}`    | Per-banner pity + 50/50 state                              |
+| `GET /accounts/{id}/stats/{game}`   | Deep statistics (distribution, early 5★, type split)       |
+| `GET /accounts/{id}/profile`        | Unified cross-game profile                                 |
+| `GET /banners/{game}`               | Active + upcoming banner schedule                          |
+| `POST /accounts/{id}/import/{game}` | Import from a gacha URL — **requires `X-API-Key`**         |
+| `DELETE /accounts/{id}/{game}`      | Delete a user's data for a game — **requires `X-API-Key`** |
 
-Reads are open by default; set `API_REQUIRE_KEY_FOR_READS=1` to gate them behind
-the key too. Interactive docs: `http://localhost:8000/docs`.
-
----
-
-## 🔒 Security & Privacy
-
-- **No Password Collection**: The bot only uses temporary, official Convene history URLs generated in-game.
-- **Privacy-First Import**: `/import` responses are strictly `ephemeral` (visible only to the command invoker).
-- **Open Source & Transparent**: All code is open-source and easily audit-able.
+Reads are open by default; set `API_REQUIRE_KEY_FOR_READS=1` to gate them behind the key too. Interactive docs: `http://localhost:8000/docs`.
 
 ---
 
-## 📄 License
+## Security & Privacy
+
+* **No Password Collection**: The bot only uses temporary, official Convene history URLs generated in-game.
+* **Privacy-First Import**: `/import` responses are strictly `ephemeral` (visible only to the command invoker).
+* **Open Source & Transparent**: All code is open-source and easily audit-able.
+
+---
+
+## License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
