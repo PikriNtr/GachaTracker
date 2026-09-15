@@ -1,6 +1,7 @@
 import urllib.parse
+from typing import Any, Dict, List, Tuple
+
 import aiohttp
-from typing import Dict, Any, List, Tuple
 
 CARD_POOL_TYPES = ["1", "2", "3", "4", "5", "6", "7"]
 
