@@ -4,12 +4,25 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from typing import List
 from core.models import Pull
-from analytics.pity import calculate_pity_summary
+from analytics.pity import calculate_pity_summary, GAME_BANNER_CONFIGS, DEFAULT_GAME
 
-def generate_pity_chart(pulls: List[Pull], player_id: str) -> io.BytesIO:
-    """Generates a dark-themed bar chart showing pity count for every 5-star pulled."""
-    summary = calculate_pity_summary(pulls)
-    p1 = summary.get("1", {})
+
+def generate_pity_chart(pulls: List[Pull], player_id: str, game_id: str = DEFAULT_GAME,
+                        game_name: str = "") -> io.BytesIO:
+    """Generates a dark-themed bar chart showing pity count for every 5-star pulled.
+
+    Uses the per-game banner config for the featured pool, hard/soft pity
+    reference lines, and the chart title.
+    """
+    cfg = GAME_BANNER_CONFIGS.get(game_id, GAME_BANNER_CONFIGS[DEFAULT_GAME])
+    featured_pool = cfg["featured_pool"]
+    soft_pity = cfg["soft_pity"]
+    hard_pity = cfg["pity_caps"].get(featured_pool, 80)
+    banner_name = cfg["names"].get(featured_pool, "Featured Banner")
+    game_label = f"  •  {game_name}" if game_name else ""
+
+    summary = calculate_pity_summary(pulls, game_id)
+    p1 = summary.get(featured_pool, {})
     history_5star = p1.get("history_5star", [])
 
     names = [item["name"] for item in history_5star]
@@ -44,8 +57,8 @@ def generate_pity_chart(pulls: List[Pull], player_id: str) -> io.BytesIO:
 
     bars = ax.bar(range(len(names)), pities, color=colors, edgecolor='#111214', linewidth=1.2, width=0.5)
 
-    ax.axhline(y=62, color='#E8B84B', linestyle='--', alpha=0.7, label='Soft Pity (~62)')
-    ax.axhline(y=80, color='#E05252', linestyle=':', alpha=0.7, label='Hard Pity (80)')
+    ax.axhline(y=soft_pity, color='#E8B84B', linestyle='--', alpha=0.7, label=f'Soft Pity (~{soft_pity})')
+    ax.axhline(y=hard_pity, color='#E05252', linestyle=':', alpha=0.7, label=f'Hard Pity ({hard_pity})')
 
     for bar, pity_val in zip(bars, pities):
         height = bar.get_height()
@@ -59,9 +72,9 @@ def generate_pity_chart(pulls: List[Pull], player_id: str) -> io.BytesIO:
     ax.set_xticklabels(names, rotation=20, ha='right', color='#DBDEE1', fontsize=9)
     ax.tick_params(axis='y', colors='#DBDEE1')
     ax.set_ylabel('Pity Count', color='#DBDEE1', fontsize=10, fontweight='bold')
-    ax.set_title(f'Featured Resonator Pity History  •  Player {player_id}', color='#FFFFFF', fontsize=11, fontweight='bold', pad=12)
+    ax.set_title(f'{banner_name} Pity History{game_label}  •  Player {player_id}', color='#FFFFFF', fontsize=11, fontweight='bold', pad=12)
 
-    ax.set_ylim(0, 95)
+    ax.set_ylim(0, hard_pity + 15)
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
     ax.spines['bottom'].set_color('#4E5058')
