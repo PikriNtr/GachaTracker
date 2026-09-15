@@ -1,9 +1,10 @@
-from typing import List, Dict, Any, Tuple
+from typing import Any, Dict, List, Tuple
+
 from core.game import GachaGame
-from core.models import Pull, Banner
+from core.models import Banner, Pull
+from games.wuthering_waves.api import fetch_all_convene_history
 from games.wuthering_waves.banners import WUWA_BANNERS
 from games.wuthering_waves.parser import parse_wuwa_records
-from games.wuthering_waves.api import fetch_all_convene_history
 
 
 class WutheringWavesPlugin(GachaGame):
