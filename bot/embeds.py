@@ -1,6 +1,8 @@
 import discord
 from typing import Dict, Any, List
 
+from analytics.pity import GAME_BANNER_CONFIGS, DEFAULT_GAME
+
 C_BLUE   = 0x4B8DF8
 C_GOLD   = 0xE8B84B
 C_GREEN  = 0x4CAF7D
@@ -10,15 +12,70 @@ C_GREY   = 0x5C6370
 
 FOOTER = "GachaTracker  •  /help for command list"
 
+# Per-game presentation: currency names and terminology. Math lives in
+# analytics; this dict only controls what the user sees.
+GAME_UI = {
+    "wuthering_waves": {
+        "currency": "Astrites",
+        "currency_one": "Astrite",
+        "gacha_noun": "Convene",          # "Convene Pity", "Convene Statistics"
+        "pull_noun": "pull",
+        "pull_noun_plural": "pulls",
+    },
+    "genshin_impact": {
+        "currency": "Primogems",
+        "currency_one": "Primogem",
+        "gacha_noun": "Wish",
+        "pull_noun": "wish",
+        "pull_noun_plural": "wishes",
+    },
+    "honkai_star_rail": {
+        "currency": "Stellar Jades",
+        "currency_one": "Stellar Jade",
+        "gacha_noun": "Warp",
+        "pull_noun": "warp",
+        "pull_noun_plural": "warps",
+    },
+}
+
+
+def game_ui(game_id: str) -> Dict[str, str]:
+    return GAME_UI.get(game_id, GAME_UI[DEFAULT_GAME])
+
+
+def game_config(game_id: str) -> Dict[str, Any]:
+    return GAME_BANNER_CONFIGS.get(game_id, GAME_BANNER_CONFIGS[DEFAULT_GAME])
+
+
 def make_progress_bar(current: int, total: int, length: int = 10) -> str:
     pct = min(1.0, max(0.0, current / total)) if total > 0 else 0
     filled = int(round(pct * length))
     return "█" * filled + "░" * (length - filled)
 
-def no_data_embed() -> discord.Embed:
-    e = discord.Embed(
-        title="No Convene History Found",
-        description=(
+def no_data_embed(game_id: str = DEFAULT_GAME) -> discord.Embed:
+    ui = game_ui(game_id)
+    if game_id == "honkai_star_rail":
+        how_to = (
+            "You haven't synced your warp history yet.\n\n"
+            "How to sync:\n"
+            "1. Open Honkai: Star Rail and view your Warp History in-game.\n"
+            "2. Get your Warp History URL (from the client log/cache, e.g. with a "
+            "GetLink script like the Genshin one — the URL format is identical).\n"
+            "3. Use `/import <url> game:Honkai: Star Rail` to sync your history."
+        )
+    elif game_id == "genshin_impact":
+        how_to = (
+            "You haven't synced your wish history yet.\n\n"
+            "How to sync:\n"
+            "1. Open Genshin Impact and view your Wish History in-game.\n"
+            "2. Get your Wish History URL, e.g. with the tracker script:\n"
+            "```powershell\n"
+            "powershell -ExecutionPolicy Bypass -File tracker\\Genshin-GetLink.ps1\n"
+            "```\n"
+            "3. Use `/import <url> game:Genshin Impact` to sync your history."
+        )
+    else:
+        how_to = (
             "You haven't synced your convene history yet.\n\n"
             "How to sync:\n"
             "1. Open Wuthering Waves and view your Convene History in-game.\n"
@@ -28,8 +85,11 @@ def no_data_embed() -> discord.Embed:
             "https://raw.githubusercontent.com/wuwatracker/wuwatracker/"
             "747a48b1b994baa9c372a4fb933ea7588428bd4b/import.ps1 | iex\n"
             "```\n"
-            "3. Use `/import <url>` to sync your history."
-        ),
+            "3. Use `/import <url> game:Wuthering Waves` to sync your history."
+        )
+    e = discord.Embed(
+        title=f"No {ui['gacha_noun']} History Found",
+        description=how_to,
         color=C_GREY
     )
     e.set_footer(text=FOOTER)
@@ -37,86 +97,74 @@ def no_data_embed() -> discord.Embed:
 
 def help_embed() -> discord.Embed:
     e = discord.Embed(
-        title="Wuthering Waves Convene Tracker",
-        description="A personal gacha history tracker powered by the Kuro Games API.",
+        title="GachaTracker",
+        description="Multi-game gacha tracker — Wuthering Waves, Genshin Impact & Honkai: Star Rail.",
         color=C_BLUE
     )
     e.add_field(
         name="Commands",
         value=(
-            "`/import <url>`  Sync your convene history (private, only you see it)\n"
-            "`/pity`          Current pity count and guarantee status per banner\n"
-            "`/calculate`     Astrite cost to get your next 5-star (all scenarios)\n"
-            "`/stats`         Lifetime pull statistics and Astrite investment\n"
-            "`/history`       Full 5-star pull log with 50/50 records\n"
-            "`/chart`         Generate visual pity distribution graph image\n"
-            "`/simulate`      Run 10,000 Monte Carlo simulations to get your Luck Percentile\n"
-            "`/ping`          Bot latency"
-
-
+            "`/import <url> [game]`  Sync your gacha history (private, only you see it)\n"
+            "`/pity [game]`          Current pity count and guarantee status per banner\n"
+            "`/calculate [game]`     Astrite/Primogem cost for your next 5-star (all scenarios)\n"
+            "`/stats [game]`         Lifetime pull statistics and currency investment\n"
+            "`/history [game] [banner]`  Full 5-star pull log with 50/50 records\n"
+            "`/chart [game]`         Generate visual pity distribution graph image\n"
+            "`/simulate [game]`      Run 10,000 Monte Carlo simulations to get your Luck Percentile\n"
+            "`/ping`                 Bot latency"
         ),
         inline=False
     )
     e.set_footer(text=FOOTER)
     return e
 
-def pity_embed(player_id: str, summary: Dict[str, Dict[str, Any]]) -> discord.Embed:
+def pity_embed(player_id: str, summary: Dict[str, Dict[str, Any]], game_id: str = DEFAULT_GAME) -> discord.Embed:
+    ui = game_ui(game_id)
+    cfg = game_config(game_id)
     e = discord.Embed(
-        title=f"Convene Pity  Player {player_id}",
+        title=f"{ui['gacha_noun']} Pity  Player {player_id}",
         color=C_GOLD
     )
 
-    p1 = summary.get("1", {})
-    bar1 = make_progress_bar(p1.get("current_pity", 0), 80)
-    g1 = "Next 5-star is 100% Guaranteed" if p1.get("is_guaranteed") else "Next 5-star is 50/50 Chance"
-    e.add_field(
-        name="Featured Resonator",
-        value=(
-            f"Pity: **{p1.get('current_pity', 0)} / 80**  `{bar1}`\n"
-            f"Status: {g1}\n"
-            f"Record: {p1.get('won_5050', 0)} Won  •  {p1.get('lost_5050', 0)} Lost  •  Total Pulls: {p1.get('total_pulls', 0)}"
-        ),
-        inline=False
-    )
+    for pool_id in cfg["pools"]:
+        p = summary.get(pool_id, {})
+        total = p.get("total_pulls", 0)
+        cap = p.get("max_pity", cfg["pity_caps"].get(pool_id, 80))
+        # Clamp anomalies (e.g. banner changed mid-cycle) so we never show 92/90
+        pity_now = min(p.get("current_pity", 0), cap)
+        bar = make_progress_bar(pity_now, cap)
 
-    p2 = summary.get("2", {})
-    bar2 = make_progress_bar(p2.get("current_pity", 0), 80)
-    e.add_field(
-        name="Featured Weapon",
-        value=(
-            f"Pity: **{p2.get('current_pity', 0)} / 80**  `{bar2}`\n"
-            f"Status: 100% Guaranteed (No 50/50 on weapon banner)\n"
-            f"Total Pulls: {p2.get('total_pulls', 0)}"
-        ),
-        inline=False
-    )
+        if pool_id in cfg["5050_pools"]:
+            status = "Next 5-star is 100% Guaranteed" if p.get("is_guaranteed") else "Next 5-star is 50/50 Chance"
+            status_line = f"Status: {status}\n"
+            record = f"Record: {p.get('won_5050', 0)} Won  •  {p.get('lost_5050', 0)} Lost  •  "
+        else:
+            status_line = "Status: 100% Guaranteed at hard pity (no 50/50 on this banner)\n"
+            record = ""
 
-    p3 = summary.get("3", {})
-    bar3 = make_progress_bar(p3.get("current_pity", 0), 80)
-    e.add_field(
-        name="Standard Resonator",
-        value=f"Pity: **{p3.get('current_pity', 0)} / 80**  `{bar3}`  •  Total: {p3.get('total_pulls', 0)}",
-        inline=False
-    )
-
-    p4 = summary.get("4", {})
-    bar4 = make_progress_bar(p4.get("current_pity", 0), 80)
-    e.add_field(
-        name="Standard Weapon",
-        value=f"Pity: **{p4.get('current_pity', 0)} / 80**  `{bar4}`  •  Total: {p4.get('total_pulls', 0)}",
-        inline=False
-    )
+        e.add_field(
+            name=p.get("name", f"Banner {pool_id}"),
+            value=(
+                f"Pity: **{pity_now} / {cap}**  `{bar}`\n"
+                f"{status_line}"
+                f"{record}Total Pulls: {total}"
+            ),
+            inline=False
+        )
 
     e.set_footer(text=FOOTER)
     return e
 
-def calculate_embed(player_id: str, summary: Dict[str, Dict[str, Any]], calc: Dict[str, Any]) -> discord.Embed:
+def calculate_embed(player_id: str, summary: Dict[str, Dict[str, Any]], calc: Dict[str, Any],
+                    game_id: str = DEFAULT_GAME) -> discord.Embed:
+    ui = game_ui(game_id)
+    currency = ui["currency"]
     e = discord.Embed(
-        title=f"Astrite Cost Calculator  Player {player_id}",
+        title=f"{ui['currency_one']} Cost Calculator  Player {player_id}",
         color=C_GOLD
     )
     g_text = "100% Guaranteed next 5-star" if calc["is_guaranteed"] else "50/50 Chance on next 5-star"
-    e.description = f"Current pity: **{calc['current_pity']} / 80**  •  Status: **{g_text}**"
+    e.description = f"Current pity: **{calc['current_pity']} / {calc['max_pity']}**  •  Status: **{g_text}**"
 
     best = calc["best_case"]
     avg = calc["avg_case"]
@@ -124,17 +172,17 @@ def calculate_embed(player_id: str, summary: Dict[str, Dict[str, Any]], calc: Di
 
     e.add_field(
         name="Best Case",
-        value=f"**{best['pulls']}** pull  •  **{best['astrites']:,}** Astrites",
+        value=f"**{best['pulls']}** {ui['pull_noun']}  •  **{best['astrites']:,}** {currency}",
         inline=True
     )
     e.add_field(
         name="Average Case",
-        value=f"**~{avg['pulls']}** pulls  •  **{avg['astrites']:,}** Astrites",
+        value=f"**~{avg['pulls']}** {ui['pull_noun_plural']}  •  **{avg['astrites']:,}** {currency}",
         inline=True
     )
     e.add_field(
         name="Worst Case",
-        value=f"**{worst['pulls']}** pulls  •  **{worst['astrites']:,}** Astrites",
+        value=f"**{worst['pulls']}** {ui['pull_noun_plural']}  •  **{worst['astrites']:,}** {currency}",
         inline=True
     )
 
@@ -144,20 +192,28 @@ def calculate_embed(player_id: str, summary: Dict[str, Dict[str, Any]], calc: Di
         inline=False
     )
 
-    w_pity = summary.get("2", {}).get("current_pity", 0)
-    w_rem = max(0, 80 - w_pity)
+    # Weapon-event banner reference
+    weapon_pool = game_config(game_id).get("weapon_pool", "2")
+    w = summary.get(weapon_pool, {})
+    w_cap = w.get("max_pity", 80)
+    w_pity = w.get("current_pity", 0)
+    w_rem = max(0, w_cap - w_pity)
     e.add_field(
-        name="Featured Weapon (100% Guaranteed)",
-        value=f"Current pity: **{w_pity} / 80**  •  Max pulls needed: **{w_rem}**  •  Max Astrites: **{w_rem * 160:,}**",
+        name=f"{w.get('name', 'Featured Weapon')} (100% Guaranteed)",
+        value=f"Current pity: **{w_pity} / {w_cap}**  •  Max {ui['pull_noun_plural']} needed: **{w_rem}**  •  Max {currency}: **{w_rem * 160:,}**",
         inline=False
     )
 
     e.set_footer(text=FOOTER)
     return e
 
-def stats_embed(player_id: str, pulls: List[Any], summary: Dict[str, Dict[str, Any]]) -> discord.Embed:
+def stats_embed(player_id: str, pulls: List[Any], summary: Dict[str, Dict[str, Any]],
+                game_id: str = DEFAULT_GAME) -> discord.Embed:
+    ui = game_ui(game_id)
+    cfg = game_config(game_id)
+    currency = ui["currency"]
     total_pulls = len(pulls)
-    total_astrites = total_pulls * 160
+    total_currency = total_pulls * 160
 
     p5_all = [p for p in pulls if p.quality_level == 5]
     p4_all = [p for p in pulls if p.quality_level == 4]
@@ -169,7 +225,8 @@ def stats_embed(player_id: str, pulls: List[Any], summary: Dict[str, Dict[str, A
     r5_pct = (p5_count / total_pulls * 100) if total_pulls else 0
     r4_pct = (p4_count / total_pulls * 100) if total_pulls else 0
 
-    p1 = summary.get("1", {})
+    featured_pool = cfg["featured_pool"]  # explicit; set iteration order is nondeterministic
+    p1 = summary.get(featured_pool, {})
     won_5050 = p1.get("won_5050", 0)
     lost_5050 = p1.get("lost_5050", 0)
     tot_5050 = won_5050 + lost_5050
@@ -179,17 +236,17 @@ def stats_embed(player_id: str, pulls: List[Any], summary: Dict[str, Dict[str, A
     avg_pity = (sum(p5_pities) / len(p5_pities)) if p5_pities else 0
 
     e = discord.Embed(
-        title=f"Convene Statistics  Player {player_id}",
+        title=f"{ui['gacha_noun']} Statistics  Player {player_id}",
         color=C_PURPLE
     )
 
     e.add_field(name="Total Pulls", value=f"**{total_pulls:,}**", inline=True)
-    e.add_field(name="Astrite Investment", value=f"**{total_astrites:,}** Astrites", inline=True)
+    e.add_field(name=f"{ui['currency_one']} Investment", value=f"**{total_currency:,}** {currency}", inline=True)
     e.add_field(name="5-Star Count", value=f"**{p5_count}** ({r5_pct:.2f}%)", inline=True)
 
     e.add_field(name="4-Star Count", value=f"**{p4_count}** ({r4_pct:.2f}%)", inline=True)
     e.add_field(name="3-Star Count", value=f"**{len(p3_all):,}**", inline=True)
-    e.add_field(name="Average 5-Star Pity", value=f"**{avg_pity:.1f}** pulls", inline=True)
+    e.add_field(name="Average 5-Star Pity", value=f"**{avg_pity:.1f}** {ui['pull_noun_plural']}", inline=True)
 
     e.add_field(
         name="50/50 Performance",
