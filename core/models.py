@@ -27,13 +27,15 @@ class Banner:
 
 @dataclass
 class Pull:
-    card_pool_type: str     # Banner category ID e.g. "1", "2"
+    card_pool_type: str     # Banner category ID e.g. "1", "301"
     resource_id: str        # Item ID
     resource_name: str      # Item Name
     quality_level: int      # Rarity e.g. 5, 4, 3
     time: str               # ISO timestamp string
     player_id: str          # Account owner
-    game_id: str = "wuthering_waves"
+    game_id: str            # Owning game plugin id e.g. "wuthering_waves"
     count: str = "1"
+    item_type: str = ""     # "Character", "Weapon", "Light Cone", "Resonator", ... from API
+    api_id: str = ""        # Unique per-pull id from the game API (dedup key when present)
     pity_at_pull: int = 0   # Calculated pity count when pulled
     is_5050_win: Optional[bool] = None  # True if won 50/50, False if lost, None if N/A or guaranteed
