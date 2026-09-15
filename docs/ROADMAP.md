@@ -134,8 +134,8 @@ Create a reliable persistence system.
 - [x] Add indexes
 - [x] Add duplicate detection
 - [x] Add import transactions
-- [ ] Add data deletion
-- [ ] Add backup considerations
+- [x] Add data deletion (`/forget` command + `Repository.delete_user_data`)
+- [x] Add backup considerations (see Data Backup section below)
 
 ### Success Criteria
 
@@ -153,6 +153,13 @@ Second import:
 New history:
 500 records → 18 inserted
 ```
+
+### Data Backup
+
+All state is a single SQLite file: `gacha_tracker/data/gachatracker.db`
+(excluded from git). Backup = copy that file while the bot is stopped, or use
+`sqlite3 data/gachatracker.db ".backup 'backup.db'"` while it runs. Restore =
+replace the file and restart. To wipe a game entirely, users run `/forget`.
 
 ---
 
@@ -228,8 +235,8 @@ Create a statistical interpretation of pull history.
 - [x] Calculate percentile
 - [x] Compare pity against expected values
 - [x] Compare 50/50 performance
-- [ ] Document methodology
-- [ ] Avoid misleading "luck prediction"
+- [x] Document methodology (`docs/LUCK_METHODOLOGY.md`)
+- [x] Avoid misleading "luck prediction"
 
 ### Success Criteria
 
