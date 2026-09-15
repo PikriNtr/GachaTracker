@@ -1,6 +1,5 @@
 from core.models import Banner
 
-
 GENSHIN_BANNERS = {
     "301": Banner(id="301", game_id="genshin_impact", name="Character Event Wish", type="character", pity_cap=90, has_5050=True),
     "400": Banner(id="400", game_id="genshin_impact", name="Character Event Wish-2", type="character", pity_cap=90, has_5050=True),
