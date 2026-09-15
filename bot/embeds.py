@@ -1,7 +1,8 @@
-import discord
-from typing import Dict, Any, List
+from typing import Any, Dict, List
 
-from analytics.pity import GAME_BANNER_CONFIGS, DEFAULT_GAME
+import discord
+
+from analytics.pity import DEFAULT_GAME, GAME_BANNER_CONFIGS
 
 C_BLUE   = 0x4B8DF8
 C_GOLD   = 0xE8B84B
