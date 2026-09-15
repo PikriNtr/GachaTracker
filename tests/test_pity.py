@@ -2,12 +2,10 @@
 import sys
 from pathlib import Path
 
-import pytest
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from analytics.pity import GAME_BANNER_CONFIGS, calculate_pity_summary
 from core.models import Pull
-from analytics.pity import calculate_pity_summary, GAME_BANNER_CONFIGS
 
 
 def pull(game_id, pool, name, q, t, item_type=""):
