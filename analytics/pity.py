@@ -1,7 +1,7 @@
 from datetime import datetime
-from typing import List, Dict, Any
-from core.models import Pull
+from typing import Any, Dict, List
 
+from core.models import Pull
 
 STANDARD_5STAR = {"Jianxin", "Calcharo", "Verina", "Lingyang", "Encore"}
 
