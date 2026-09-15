@@ -268,3 +268,58 @@ def generate_banner_comparison_chart(pulls: List[Pull], player_id: str, game_id:
               labelcolor=_TEXT, loc='upper right', fontsize=8)
 
     return _save(fig)
+
+
+def generate_profile_chart(profile: dict, player_id: str) -> io.BytesIO:
+    """Multi-game profile visual: grouped bars per game (pulls, 5-stars) +
+    featured-pity progress markers. `profile` is the dict from
+    analytics.profile.unified_profile()."""
+    games = profile.get("games", {})
+    if not games:
+        fig, ax = plt.subplots(figsize=(7, 3), dpi=150)
+        _style_dark(fig, ax)
+        ax.text(0.5, 0.5, "No gacha data yet — use /import first",
+                ha='center', va='center', color=_TEXT, fontsize=11, transform=ax.transAxes)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        return _save(fig)
+
+    order = [gid for gid in ("wuthering_waves", "genshin_impact", "honkai_star_rail") if gid in games]
+    display = {"wuthering_waves": "WuWa", "genshin_impact": "Genshin", "honkai_star_rail": "HSR"}
+
+    labels = [display.get(gid, gid) for gid in order]
+    totals = [games[gid]["total_pulls"] for gid in order]
+    fives = [games[gid]["count_5"] for gid in order]
+    pities = [games[gid]["featured_pity"] for gid in order]
+    caps = [games[gid]["featured_cap"] for gid in order]
+
+    fig, ax = plt.subplots(figsize=(8.5, 4.4), dpi=150)
+    _style_dark(fig, ax)
+
+    x = range(len(order))
+    width = 0.38
+    bars1 = ax.bar([i - width / 2 for i in x], totals, width, color='#4B8DF8',
+                   edgecolor=_EDGE, linewidth=1.2, label='Total pulls')
+    bars2 = ax.bar([i + width / 2 for i in x], fives, width, color='#E8B84B',
+                   edgecolor=_EDGE, linewidth=1.2, label='5-stars')
+
+    ax.bar_label(bars1, padding=3, color='#FFFFFF', fontsize=9, fontweight='bold')
+    ax.bar_label(bars2, padding=3, color='#E8B84B', fontsize=9, fontweight='bold')
+
+    # featured pity annotation under each game label
+    for i, (gid, pity, cap) in enumerate(zip(order, pities, caps, strict=False)):
+        status = " ★guaranteed" if games[gid]["is_guaranteed"] else ""
+        ax.annotate(f"{display.get(gid, gid)} featured: {pity}/{cap}{status}",
+                    xy=(i, 0), xytext=(0, -34), textcoords="offset points",
+                    ha='center', color='#9B72CF', fontsize=8.5)
+
+    ax.set_xticks(list(x))
+    ax.set_xticklabels(labels, color=_TEXT, fontsize=10)
+    ax.tick_params(axis='x', pad=22)  # room for the pity annotations
+    ax.set_ylabel('Count', color=_TEXT, fontsize=10, fontweight='bold')
+    ax.set_ylim(0, max(totals) * 1.2 if totals else 1)
+    ax.set_title(f'Cross-Game Profile  •  Player {player_id}', color='#FFFFFF',
+                 fontsize=11, fontweight='bold', pad=12)
+    ax.legend(facecolor=_DARK_AX, edgecolor=_GRID, labelcolor=_TEXT, loc='upper right', fontsize=8)
+
+    return _save(fig)
