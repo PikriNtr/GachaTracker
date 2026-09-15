@@ -8,6 +8,7 @@ from analytics import (
     DEFAULT_GAME,
     GAME_BANNER_CONFIGS,
     calculate_astrite_cost,
+    calculate_deep_statistics,
     calculate_pity_summary,
     get_game_banner_names,
 )
@@ -268,7 +269,8 @@ class GachaCog(commands.Cog):
             return
 
         summary = calculate_pity_summary(pulls, game_id)
-        embed = stats_embed(account.player_id, pulls, summary, game_id)
+        deep = calculate_deep_statistics(pulls, game_id)
+        embed = stats_embed(account.player_id, pulls, summary, game_id, deep=deep)
         await interaction.response.send_message(embed=embed)
 
     # ------------------------------------------------------------------
