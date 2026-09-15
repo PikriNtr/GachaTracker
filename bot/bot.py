@@ -1,7 +1,13 @@
 import discord
 from discord.ext import commands, tasks
 from config import GUILD_IDS, VOICE_CHANNEL_IDS
+from core.registry import registry
+from games import register_all_plugins
 from bot.cogs import UtilityCog, GachaCog
+
+
+# Populate the global plugin registry before cogs load
+register_all_plugins(registry)
 
 
 intents = discord.Intents.default()
