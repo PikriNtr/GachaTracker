@@ -102,12 +102,13 @@ All gacha commands accept an optional `game` option (Wuthering Waves / Genshin I
 | `/calculate [game]` | Calculate Astrite/Primogem/Stellar Jade cost & 50/50 scenarios (best, average, worst case) |
 | `/stats [game]` | View lifetime pull statistics, currency investment, and 5-star rates |
 | `/history [game] [banner]` | Full 5-star pull log with 50/50 win/loss records |
-| `/banners [game]` | Current + upcoming banners per pool (community-maintained schedule) |
-| `/bannerset [game]` | Add/update a banner schedule window with start/end times |
-| `/bannerremove [game]` | Remove banner schedule windows for a pool |
 | `/profile` | Unified cross-game view: per-game pulls/5★/pity + lifetime totals, with comparison chart |
 | `/chart [game] [type]` | Visual charts: Pity History, Pull Timeline, Rarity Distribution, Banner Comparison |
 | `/simulate [game]` | Run 10,000 Monte Carlo simulations to get your Luck Percentile |
+| `/banners [game]` | Current + upcoming banners per pool (community-maintained schedule) |
+| `/bannerset [game]` | Add/update a banner schedule window with start/end times |
+| `/bannerremove [game]` | Remove banner schedule windows for a pool |
+| `/forget [game]` | Delete your stored data for a game |
 | `/help` | Show bot commands and setup guide |
 | `/ping` | Check bot latency and operational status |
 
@@ -180,6 +181,34 @@ discord-tracker/
 - [x] **v0.4 — Monte Carlo Luck Simulation**: Compare player pity distributions against 10,000 simulated players to calculate statistical percentiles.
 - [x] **v0.5 — Multi-Game Plugins**: Genshin Impact & Honkai: Star Rail plugins via the registry; per-game probability models (`/simulate`), game-aware charts and embeds, shared HoYoverse API client.
 - [ ] **v0.6 — Web Dashboard & REST API**: Standalone FastAPI service and interactive web dashboard.
+
+---
+
+## 🌐 REST API (Phase 11)
+
+The core is also exposed as a standalone HTTP service — same engines, same SQLite DB:
+
+```bash
+pip install fastapi uvicorn httpx
+set API_ENABLED=1                 # optional flag for tooling
+set API_KEY=your-secret-key       # required for write endpoints
+uvicorn api.main:app --port 8000  # from gacha_tracker/
+```
+
+| Endpoint | Description |
+|---|---|
+| `GET /games` | Registered games + banner configs |
+| `GET /accounts/{id}` | A user's game accounts + pull counts |
+| `GET /accounts/{id}/pulls/{game}` | Pull history (paginated; filter by pool/rarity) |
+| `GET /accounts/{id}/pity/{game}` | Per-banner pity + 50/50 state |
+| `GET /accounts/{id}/stats/{game}` | Deep statistics (distribution, early 5★, type split) |
+| `GET /accounts/{id}/profile` | Unified cross-game profile |
+| `GET /banners/{game}` | Active + upcoming banner schedule |
+| `POST /accounts/{id}/import/{game}` | Import from a gacha URL — **requires `X-API-Key`** |
+| `DELETE /accounts/{id}/{game}` | Delete a user's data for a game — **requires `X-API-Key`** |
+
+Reads are open by default; set `API_REQUIRE_KEY_FOR_READS=1` to gate them behind
+the key too. Interactive docs: `http://localhost:8000/docs`.
 
 ---
 
