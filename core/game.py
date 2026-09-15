@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Tuple
-from .models import Pull, Banner
+from typing import Any, Dict, List
+
+from .models import Banner, Pull
+
 
 class GachaGame(ABC):
     """Abstract Base Class for all game plugins in GachaTracker."""
