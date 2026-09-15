@@ -6,11 +6,11 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from analytics.pity import DEFAULT_GAME, GAME_BANNER_CONFIGS, calculate_pity_summary
 from core.models import Pull
-from analytics.pity import calculate_pity_summary, GAME_BANNER_CONFIGS, DEFAULT_GAME
+from database.repository import Repository
 from games.genshin_impact.parser import parse_genshin_records
 from games.honkai_star_rail.parser import parse_hsr_records
-from database.repository import Repository
 
 
 @pytest.fixture
