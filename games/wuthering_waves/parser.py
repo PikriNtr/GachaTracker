@@ -29,5 +29,6 @@ def parse_wuwa_records(pulls_by_pool: Dict[str, List[Dict[str, Any]]], player_id
                 player_id=player_id,
                 game_id="wuthering_waves",
                 count=count_str,
+                item_type=str(item.get("resourceType", "") or ""),
             ))
     return pulls
