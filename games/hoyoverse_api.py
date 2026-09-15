@@ -11,8 +11,9 @@ frequently" the same way. One client, two configurations.
 """
 import asyncio
 import urllib.parse
+from typing import Any, Dict, List, Tuple
+
 import aiohttp
-from typing import Dict, Any, List, Tuple
 
 # Pacing: HoYoverse rate-limits ("visit too frequently") when pages are
 # requested back-to-back. The reference community clients sleep between
