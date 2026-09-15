@@ -1,6 +1,8 @@
 import sys
-from config import DISCORD_TOKEN
+
 from bot.bot import bot
+from config import DISCORD_TOKEN
+
 
 def main():
     if not DISCORD_TOKEN or DISCORD_TOKEN.strip() == "" or DISCORD_TOKEN == "your_bot_token_here":
