@@ -323,8 +323,8 @@ User
 - [x] Multi-game accounts
 - [x] Game selector
 - [x] Game-specific profiles
-- [ ] Unified profile
-- [ ] Cross-game statistics
+- [x] Unified profile (`/profile` with comparison chart)
+- [x] Cross-game statistics
 
 ---
 
@@ -671,22 +671,20 @@ The evolution should look like:
 
 # Current Focus
 
-Phases 0–8 are complete: the plugin architecture is proven with three live
-games (Wuthering Waves, Genshin Impact, Honkai: Star Rail), per-game pity and
-probability models, idempotent imports with api-based deduplication, and a
-pytest suite covering the core engines.
+Phases 0–9 are complete: four-command multi-game Discord experience
+(import/pity/stats/history/chart/simulate/profile/forget), three live game
+plugins (Wuthering Waves, Genshin Impact, Honkai: Star Rail), per-game pity
+and probability models, idempotent imports with api-based deduplication,
+deep statistics, visualization suite, and a 75-test pytest suite.
 
-The immediate priorities are hardening and packaging:
-
-1. Publish the GitHub repository and enable CI (pytest on push).
-2. Expand analytics (median/min/max/std pity, character & weapon statistics).
-3. Remaining visualizations (pull timeline, rarity distribution).
+The immediate priority is the REST API (Phase 11) — separating the core from
+the Discord interface to enable the web dashboard.
 
 ---
 
 # Status
 
-**Current Stage:** Multi-game platform (Phases 0–8 complete)
+**Current Stage:** Multi-game platform (Phases 0–9 complete)
 
 **Current Target:** v0.6 — REST API / Web Dashboard
 
