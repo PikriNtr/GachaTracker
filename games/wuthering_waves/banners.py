@@ -1,6 +1,5 @@
 from core.models import Banner
 
-
 WUWA_BANNERS = {
     "1": Banner(id="1", game_id="wuthering_waves", name="Featured Resonator", type="character", pity_cap=80, has_5050=True),
     "2": Banner(id="2", game_id="wuthering_waves", name="Featured Weapon", type="weapon", pity_cap=80, has_5050=False),
