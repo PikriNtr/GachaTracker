@@ -369,29 +369,56 @@ class GachaCog(commands.Cog):
     # ------------------------------------------------------------------
     # /chart
     # ------------------------------------------------------------------
-    @app_commands.command(name="chart", description="Generate a visual pity distribution graph for your 5-star pulls")
-    @app_commands.describe(game="Which game to check")
-    @app_commands.choices(game=GAME_CHOICES)
+    @app_commands.command(name="chart", description="Generate a visual chart of your gacha data")
+    @app_commands.describe(game="Which game to check", type="Which chart to draw")
+    @app_commands.choices(game=GAME_CHOICES, type=[
+        app_commands.Choice(name="Pity History", value="pity"),
+        app_commands.Choice(name="Pull Timeline", value="timeline"),
+        app_commands.Choice(name="Rarity Distribution", value="rarity"),
+        app_commands.Choice(name="Banner Comparison", value="banners"),
+    ])
     async def chart_cmd(self, interaction: discord.Interaction,
-                        game: Optional[app_commands.Choice[str]] = None):
+                        game: Optional[app_commands.Choice[str]] = None,
+                        type: Optional[app_commands.Choice[str]] = None):
         await interaction.response.defer()
         game_id = game.value if game else "wuthering_waves"
+        chart_type = type.value if type else "pity"
         account, pulls = await self._load_account(interaction, game_id, ephemeral=False)
         if not account:
             return
 
-        from analytics import generate_pity_chart
+        from analytics import charts
         plugin = _plugin_for(game_id)
-        chart_buf = generate_pity_chart(pulls, account.player_id, game_id,
-                                        plugin.name if plugin else "")
-        file = discord.File(fp=chart_buf, filename="pity_chart.png")
+        game_name = plugin.name if plugin else ""
 
+        generators = {
+            "pity": charts.generate_pity_chart,
+            "timeline": charts.generate_timeline_chart,
+            "rarity": charts.generate_rarity_chart,
+            "banners": charts.generate_banner_comparison_chart,
+        }
+        gen = generators.get(chart_type, charts.generate_pity_chart)
+        chart_buf = gen(pulls, account.player_id, game_id, game_name)
+        file = discord.File(fp=chart_buf, filename=f"{chart_type}_chart.png")
+
+        titles = {
+            "pity": "Pity Distribution Graph",
+            "timeline": "Pull Timeline",
+            "rarity": "Rarity Distribution",
+            "banners": "Banner Comparison",
+        }
+        descriptions = {
+            "pity": "Green = Won 50/50  •  Red = Lost 50/50  •  Purple = Guaranteed  •  Gold = Ongoing Pity",
+            "timeline": "Line = cumulative pulls  •  Dots = 5-stars (label shows pity)  •  Star = current position",
+            "rarity": "Pull counts per rarity with percentages",
+            "banners": "Bars = total pulls per banner  •  Yellow line = average 5★ pity",
+        }
         embed = discord.Embed(
-            title=f"Pity Distribution Graph  Player {account.player_id}",
-            description="Green = Won 50/50  •  Red = Lost 50/50  •  Gold = Ongoing Pity",
+            title=f"{titles[chart_type]}  Player {account.player_id}",
+            description=descriptions[chart_type],
             color=C_GREEN
         )
-        embed.set_image(url="attachment://pity_chart.png")
+        embed.set_image(url=f"attachment://{chart_type}_chart.png")
         embed.set_footer(text=FOOTER)
 
         await interaction.followup.send(embed=embed, file=file)
