@@ -1,7 +1,8 @@
 import discord
 from discord import app_commands
 from discord.ext import commands
-from bot.embeds import help_embed, C_BLUE, C_GREEN, FOOTER
+
+from bot.embeds import C_GREEN, FOOTER, help_embed
 
 
 class UtilityCog(commands.Cog):
