@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands, tasks
 
-from bot.cogs import GachaCog, UtilityCog
+from bot.cogs import BannersCog, GachaCog, UtilityCog
 from config import GUILD_IDS, VOICE_CHANNEL_IDS
 from core.registry import registry
 from games import register_all_plugins
@@ -22,6 +22,7 @@ class GachaTrackerBot(commands.Bot):
         # Load cogs
         await self.add_cog(UtilityCog(self))
         await self.add_cog(GachaCog(self))
+        await self.add_cog(BannersCog(self))
 
         # Sync slash commands
         if GUILD_IDS:
