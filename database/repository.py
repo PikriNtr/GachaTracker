@@ -32,7 +32,9 @@ class Repository:
             )
             """)
 
-            # Pulls table
+            # Pulls table — dedup is handled by partial unique indexes below
+            # (api_id when the game API provides one, natural key otherwise),
+            # so the table itself carries no inline UNIQUE constraint.
             cursor.execute("""
             CREATE TABLE IF NOT EXISTS pulls (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,10 +46,70 @@ class Repository:
                 resource_name TEXT NOT NULL,
                 quality_level INTEGER NOT NULL,
                 time TEXT NOT NULL,
+                item_type TEXT DEFAULT '',
+                api_id TEXT DEFAULT '',
                 pity_at_pull INTEGER DEFAULT 0,
-                is_5050_win INTEGER,
-                UNIQUE(discord_id, game_id, player_id, card_pool_type, resource_name, time)
+                is_5050_win INTEGER
             )
+            """)
+
+            # Migrations for DBs created before these columns existed
+            cursor.execute("PRAGMA table_info(pulls)")
+            cols = {row[1] for row in cursor.fetchall()}
+            if "item_type" not in cols:
+                cursor.execute("ALTER TABLE pulls ADD COLUMN item_type TEXT DEFAULT ''")
+            if "api_id" not in cols:
+                cursor.execute("ALTER TABLE pulls ADD COLUMN api_id TEXT DEFAULT ''")
+
+            # Legacy DBs carry an inline UNIQUE(discord_id, game_id, player_id,
+            # card_pool_type, resource_name, time) which collapses distinct pulls
+            # sharing a timestamp (e.g. duplicate items inside one 10-pull).
+            # Detect it and rebuild the table without it, preserving all rows.
+            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='pulls'")
+            table_sql = cursor.fetchone()["sql"] or ""
+            if "UNIQUE(" in table_sql.replace(" ", "").upper():
+                cursor.execute("ALTER TABLE pulls RENAME TO pulls_legacy")
+                cursor.execute("""
+                CREATE TABLE pulls (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    discord_id TEXT NOT NULL,
+                    game_id TEXT NOT NULL,
+                    player_id TEXT NOT NULL,
+                    card_pool_type TEXT NOT NULL,
+                    resource_id TEXT,
+                    resource_name TEXT NOT NULL,
+                    quality_level INTEGER NOT NULL,
+                    time TEXT NOT NULL,
+                    item_type TEXT DEFAULT '',
+                    api_id TEXT DEFAULT '',
+                    pity_at_pull INTEGER DEFAULT 0,
+                    is_5050_win INTEGER
+                )
+                """)
+                cursor.execute("""
+                INSERT INTO pulls
+                    (discord_id, game_id, player_id, card_pool_type, resource_id, resource_name,
+                     quality_level, time, item_type, api_id, pity_at_pull, is_5050_win)
+                SELECT discord_id, game_id, player_id, card_pool_type, resource_id, resource_name,
+                       quality_level, time, COALESCE(item_type, ''), COALESCE(api_id, ''),
+                       pity_at_pull, is_5050_win
+                FROM pulls_legacy
+                """)
+                cursor.execute("DROP TABLE pulls_legacy")
+
+            # Dedup indexes:
+            # - api_id (Genshin/HSR): the API's per-pull id is unique, even inside
+            #   one 10-pull where names/timestamps repeat.
+            # - natural key (WuWa, no per-pull id): old behavior.
+            cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_pulls_api_id
+            ON pulls(discord_id, game_id, api_id)
+            WHERE api_id != ''
+            """)
+            cursor.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_pulls_natural
+            ON pulls(discord_id, game_id, player_id, card_pool_type, resource_name, time)
+            WHERE api_id = ''
             """)
             conn.commit()
 
@@ -81,7 +143,12 @@ class Repository:
             return GameAccount(id=row["id"], discord_id=row["discord_id"], game_id=row["game_id"], player_id=row["player_id"], server=row["server"], metadata=meta)
 
     def save_pulls(self, discord_id: str, game_id: str, player_id: str, pulls: List[Pull]) -> int:
-        """Saves pulls idempotently. Returns count of newly inserted pulls."""
+        """Saves pulls idempotently. Returns count of newly inserted pulls.
+
+        Dedup scheme:
+        - Pulls with an api_id (Genshin/HSR): unique on (discord_id, game_id, api_id).
+        - Pulls without one (WuWa): unique on the (player, pool, name, time) natural key.
+        """
         inserted_count = 0
         with self._get_conn() as conn:
             cursor = conn.cursor()
@@ -89,9 +156,9 @@ class Repository:
                 win_val = 1 if p.is_5050_win is True else (0 if p.is_5050_win is False else None)
                 cursor.execute("""
                 INSERT OR IGNORE INTO pulls 
-                (discord_id, game_id, player_id, card_pool_type, resource_id, resource_name, quality_level, time, pity_at_pull, is_5050_win)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                """, (discord_id, game_id, player_id, p.card_pool_type, p.resource_id, p.resource_name, p.quality_level, p.time, p.pity_at_pull, win_val))
+                (discord_id, game_id, player_id, card_pool_type, resource_id, resource_name, quality_level, time, item_type, api_id, pity_at_pull, is_5050_win)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (discord_id, game_id, player_id, p.card_pool_type, p.resource_id, p.resource_name, p.quality_level, p.time, p.item_type, p.api_id, p.pity_at_pull, win_val))
                 if cursor.rowcount > 0:
                     inserted_count += 1
             conn.commit()
@@ -102,14 +169,14 @@ class Repository:
             cursor = conn.cursor()
             if card_pool_type:
                 cursor.execute("""
-                SELECT card_pool_type, resource_id, resource_name, quality_level, time, player_id, game_id, pity_at_pull, is_5050_win
+                SELECT card_pool_type, resource_id, resource_name, quality_level, time, player_id, game_id, item_type, api_id, pity_at_pull, is_5050_win
                 FROM pulls
                 WHERE discord_id = ? AND game_id = ? AND card_pool_type = ?
                 ORDER BY time ASC
                 """, (discord_id, game_id, str(card_pool_type)))
             else:
                 cursor.execute("""
-                SELECT card_pool_type, resource_id, resource_name, quality_level, time, player_id, game_id, pity_at_pull, is_5050_win
+                SELECT card_pool_type, resource_id, resource_name, quality_level, time, player_id, game_id, item_type, api_id, pity_at_pull, is_5050_win
                 FROM pulls
                 WHERE discord_id = ? AND game_id = ?
                 ORDER BY time ASC
@@ -127,6 +194,8 @@ class Repository:
                     time=r["time"],
                     player_id=r["player_id"],
                     game_id=r["game_id"],
+                    item_type=r["item_type"] or "",
+                    api_id=r["api_id"] or "",
                     pity_at_pull=r["pity_at_pull"],
                     is_5050_win=win_val
                 ))
