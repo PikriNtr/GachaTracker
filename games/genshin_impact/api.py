@@ -1,7 +1,8 @@
 import asyncio
 import urllib.parse
+from typing import Any, Dict, List, Tuple
+
 import aiohttp
-from typing import Dict, Any, List, Tuple
 
 API_DOMAIN_CN = "https://public-operation-hk4e.mihoyo.com"
 API_DOMAIN_OS = "https://public-operation-hk4e-sg.hoyoverse.com"
