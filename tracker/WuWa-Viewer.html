@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WuWa Local Viewer</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #0c0c12;
+  --bg-base: #12121a;
+  --bg-card: #1a1a26;
+  --bg-card-hover: #1e1e2c;
+  --bg-elevated: #242434;
+  --bg-bar: #2a2a3a;
+  --fg-white: #e8e8f0;
+  --fg-dim: #7a7a90;
+  --fg-muted: #50506a;
+  --gold: #ffc83c;
+  --gold-dim: #c49a2a;
+  --gold-bg: rgba(255, 200, 60, 0.08);
+  --purple: #c878ff;
+  --purple-dim: #9050cc;
+  --purple-bg: rgba(200, 120, 255, 0.08);
+  --cyan: #50c8ff;
+  --green: #50dc78;
+  --green-dim: #38a058;
+  --red: #ff5050;
+  --red-dim: #cc3030;
+}
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg-deep);
+  color: var(--fg-white);
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+/* ============ DROP ZONE ============ */
+#drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 40px;
+  transition: all 0.3s;
+}
+
+#drop-zone.dragging {
+  background: rgba(80, 200, 255, 0.04);
+}
+
+.drop-box {
+  border: 2px dashed var(--fg-muted);
+  border-radius: 16px;
+  padding: 60px 80px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s;
+  max-width: 500px;
+}
+
+.drop-box:hover, #drop-zone.dragging .drop-box {
+  border-color: var(--cyan);
+  background: rgba(80, 200, 255, 0.03);
+}
+
+.drop-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.drop-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.drop-sub {
+  font-size: 13px;
+  color: var(--fg-dim);
+}
+
+#file-input { display: none; }
+
+/* ============ MAIN LAYOUT ============ */
+#app {
+  display: none;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: 20px 20px 60px;
+}
+
+#app.visible { display: block; }
+
+/* ============ HEADER ============ */
+.header {
+  background: var(--bg-card);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.header-left h1 {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--cyan);
+  letter-spacing: -0.5px;
+}
+
+.header-left .meta {
+  font-size: 12px;
+  color: var(--fg-dim);
+  margin-top: 2px;
+}
+
+.header-right {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-reload {
+  background: var(--bg-elevated);
+  border: 1px solid var(--bg-bar);
+  color: var(--fg-dim);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+
+.btn-reload:hover {
+  color: var(--fg-white);
+  border-color: var(--cyan);
+}
+
+/* ============ OVERVIEW CARDS ============ */
+.overview {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.overview-card {
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+}
+
+.overview-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 3px;
+}
+
+.overview-card.total::before { background: var(--cyan); }
+.overview-card.five::before { background: var(--gold); }
+.overview-card.four::before { background: var(--purple); }
+.overview-card.rate::before { background: var(--green); }
+
+.overview-card .ov-value {
+  font-size: 26px;
+  font-weight: 900;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.1;
+}
+
+.overview-card.total .ov-value { color: var(--cyan); }
+.overview-card.five .ov-value { color: var(--gold); }
+.overview-card.four .ov-value { color: var(--purple); }
+.overview-card.rate .ov-value { color: var(--green); }
+
+.overview-card .ov-label {
+  font-size: 11px;
+  color: var(--fg-dim);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+/* ============ BANNER CARD ============ */
+.banner-card {
+  background: var(--bg-card);
+  border-radius: 12px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  transition: background 0.2s;
+}
+
+.banner-card:hover {
+  background: var(--bg-card-hover);
+}
+
+.banner-top {
+  display: flex;
+  align-items: stretch;
+  border-left: 4px solid var(--fg-muted);
+}
+
+.banner-card[data-pool="1"] .banner-top { border-left-color: var(--gold); }
+.banner-card[data-pool="2"] .banner-top { border-left-color: var(--purple); }
+.banner-card[data-pool="3"] .banner-top { border-left-color: var(--cyan); }
+.banner-card[data-pool="4"] .banner-top { border-left-color: var(--purple-dim); }
+.banner-card[data-pool="5"] .banner-top,
+.banner-card[data-pool="6"] .banner-top { border-left-color: var(--green); }
+.banner-card[data-pool="7"] .banner-top { border-left-color: var(--cyan); }
+
+.banner-content {
+  flex: 1;
+  padding: 18px 20px;
+  display: grid;
+  grid-template-columns: 200px 160px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+@media (max-width: 700px) {
+  .banner-content {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Pity Section */
+.pity-section h3 {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.pity-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+
+.pity-label {
+  font-size: 11px;
+  color: var(--fg-dim);
+  margin-bottom: 10px;
+}
+
+.pity-bar-wrap {
+  background: var(--bg-bar);
+  border-radius: 4px;
+  height: 6px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.pity-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.6s ease;
+}
+
+.pity-remaining {
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+
+.pity-remaining strong {
+  color: var(--fg-white);
+  font-weight: 700;
+}
+
+.pity4-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.pity4-num {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--purple);
+}
+
+.pity4-label {
+  font-size: 11px;
+  color: var(--fg-dim);
+}
+
+/* Stats Section */
+.stats-section {
+  padding-top: 4px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.stat-row .stat-label { color: var(--fg-dim); }
+.stat-row .stat-value { font-weight: 700; font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+/* History Section */
+.history-section {
+  padding-top: 4px;
+}
+
+.history-section h4 {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gold);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0;
+  font-size: 12px;
+}
+
+.history-name {
+  color: var(--gold);
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.history-pulls {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  min-width: 30px;
+  text-align: center;
+}
+
+.history-pulls.lucky { background: rgba(80, 220, 120, 0.15); color: var(--green); }
+.history-pulls.normal { background: rgba(255, 200, 60, 0.15); color: var(--gold); }
+.history-pulls.unlucky { background: rgba(255, 80, 80, 0.15); color: var(--red); }
+
+.history-date {
+  color: var(--fg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.history-scroll {
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-bar) transparent;
+}
+
+.history-scroll::-webkit-scrollbar { width: 4px; }
+.history-scroll::-webkit-scrollbar-track { background: transparent; }
+.history-scroll::-webkit-scrollbar-thumb { background: var(--bg-bar); border-radius: 2px; }
+
+/* Toggle history */
+.banner-toggle {
+  display: none;
+  border-top: 1px solid var(--bg-elevated);
+  padding: 8px 20px;
+  text-align: center;
+}
+
+.banner-toggle button {
+  background: none;
+  border: none;
+  color: var(--fg-dim);
+  font-size: 11px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.banner-toggle button:hover { color: var(--fg-white); }
+
+/* ============ FOOTER ============ */
+.footer {
+  text-align: center;
+  padding: 30px 0 10px;
+  font-size: 11px;
+  color: var(--fg-muted);
+}
+
+/* ============ ANIMATIONS ============ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.banner-card {
+  animation: fadeInUp 0.4s ease both;
+}
+
+.banner-card:nth-child(2) { animation-delay: 0.05s; }
+.banner-card:nth-child(3) { animation-delay: 0.10s; }
+.banner-card:nth-child(4) { animation-delay: 0.15s; }
+.banner-card:nth-child(5) { animation-delay: 0.20s; }
+.banner-card:nth-child(6) { animation-delay: 0.25s; }
+.banner-card:nth-child(7) { animation-delay: 0.30s; }
+</style>
+</head>
+<body>
+
+<!-- Drop Zone -->
+<div id="drop-zone">
+  <div class="drop-box" id="drop-box">
+    <div class="drop-icon">📂</div>
+    <div class="drop-title">JSON 파일을 드래그하세요</div>
+    <div class="drop-sub">wuwa_pulls_*.json 파일을 여기에 놓거나 클릭해서 선택</div>
+  </div>
+  <input type="file" id="file-input" accept=".json">
+</div>
+
+<!-- Main App -->
+<div id="app">
+  <div class="header">
+    <div class="header-left">
+      <h1>WuWa Local Viewer</h1>
+      <div class="meta" id="header-meta"></div>
+    </div>
+    <div class="header-right">
+      <button class="btn-reload" id="btn-reload">다른 파일 열기</button>
+    </div>
+  </div>
+
+  <div class="overview" id="overview"></div>
+  <div id="banners"></div>
+
+  <div class="footer">
+    WuWa Local Viewer &mdash; 완전 오프라인, 외부 서버로 데이터 전송 없음.
+  </div>
+</div>
+
+<script>
+const BANNER_NAMES = {
+  '1': '캐릭터 이벤트 튜닝',
+  '2': '무기 이벤트 튜닝',
+  '3': '캐릭터 레귤러 튜닝',
+  '4': '무기 레귤러 튜닝',
+  '5': '초심자 튜닝',
+  '6': '초심자 자선 튜닝',
+  '7': '환영 튜닝'
+};
+
+const BANNER_PITY = {
+  '1': { max: 80, guarantee: 160 },
+  '2': { max: 80, guarantee: 0 },
+  '3': { max: 80, guarantee: 0 },
+  '4': { max: 80, guarantee: 0 },
+  '5': { max: 50, guarantee: 0 },
+  '6': { max: 80, guarantee: 0 },
+  '7': { max: 80, guarantee: 0 }
+};
+
+// ============ File Handling ============
+const dropZone = document.getElementById('drop-zone');
+const dropBox = document.getElementById('drop-box');
+const fileInput = document.getElementById('file-input');
+const app = document.getElementById('app');
+
+dropBox.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+
+['dragenter','dragover'].forEach(ev => {
+  dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.add('dragging'); });
+});
+['dragleave','drop'].forEach(ev => {
+  dropZone.addEventListener(ev, e => { e.preventDefault(); dropZone.classList.remove('dragging'); });
+});
+dropZone.addEventListener('drop', e => {
+  const file = e.dataTransfer.files[0];
+  if (file) loadFile(file);
+});
+
+document.getElementById('btn-reload').addEventListener('click', () => {
+  app.classList.remove('visible');
+  dropZone.style.display = 'flex';
+  fileInput.value = '';
+});
+
+function loadFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      let text = e.target.result;
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      const data = JSON.parse(text);
+      renderApp(data);
+    } catch (err) {
+      alert('JSON 파일을 읽을 수 없습니다: ' + err.message);
+    }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+// ============ Analyze ============
+function analyzeBanner(pullList, maxPity, guarantee) {
+  const total = pullList.length;
+  let fiveCount = 0, fourCount = 0, threeCount = 0;
+  let currentPity = total, currentPity4 = total;
+  let foundFirst5 = false, foundFirst4 = false;
+  const fiveStars = [];
+
+  for (let i = 0; i < total; i++) {
+    const ql = parseInt(pullList[i].qualityLevel);
+    if (ql === 5) {
+      fiveCount++;
+      const name = pullList[i].name || 'Unknown';
+      fiveStars.push({ name, time: pullList[i].time, index: i });
+      if (!foundFirst5) { currentPity = i; foundFirst5 = true; }
+    } else if (ql === 4) {
+      fourCount++;
+      if (!foundFirst4) { currentPity4 = i; foundFirst4 = true; }
+    } else {
+      threeCount++;
+    }
+  }
+
+  const fiveStarDetails = fiveStars.map((fs, j) => {
+    const gap = (j + 1 < fiveStars.length) ? fiveStars[j+1].index - fs.index : total - fs.index;
+    return { name: fs.name, time: fs.time, pulls: gap };
+  });
+
+  let avgPity = 0;
+  if (fiveCount > 0) {
+    avgPity = (fiveStarDetails.reduce((s, f) => s + f.pulls, 0) / fiveCount).toFixed(1);
+  }
+
+  const fiveRate = total > 0 ? ((fiveCount / total) * 100).toFixed(2) : '0.00';
+
+  return { total, fiveCount, fourCount, threeCount, currentPity, currentPity4, maxPity, guarantee, fiveStars: fiveStarDetails, avgPity, fiveRate };
+}
+
+function getPityColor(current, max) {
+  const pct = current / max;
+  if (pct >= 0.75) return 'var(--red)';
+  if (pct >= 0.5) return 'var(--gold)';
+  return 'var(--green)';
+}
+
+function getPullClass(pulls) {
+  if (pulls <= 50) return 'lucky';
+  if (pulls <= 70) return 'normal';
+  return 'unlucky';
+}
+
+// ============ Render ============
+function renderApp(data) {
+  dropZone.style.display = 'none';
+  app.classList.add('visible');
+
+  document.getElementById('header-meta').textContent =
+    `플레이어: ${data.player_id}  |  업데이트: ${data.fetched_at}`;
+
+  const pulls = data.pulls;
+
+  // Overview totals
+  let totalAll = 0, fiveAll = 0, fourAll = 0;
+  for (const key of Object.keys(pulls)) {
+    const list = pulls[key];
+    totalAll += list.length;
+    for (const p of list) {
+      const ql = parseInt(p.qualityLevel);
+      if (ql === 5) fiveAll++;
+      else if (ql === 4) fourAll++;
+    }
+  }
+  const rateAll = totalAll > 0 ? ((fiveAll / totalAll) * 100).toFixed(2) : '0.00';
+
+  document.getElementById('overview').innerHTML = `
+    <div class="overview-card total">
+      <div class="ov-value">${totalAll.toLocaleString()}</div>
+      <div class="ov-label">총 뽑기 수</div>
+    </div>
+    <div class="overview-card five">
+      <div class="ov-value">${fiveAll}</div>
+      <div class="ov-label">5★ 뽑은 횟수</div>
+    </div>
+    <div class="overview-card four">
+      <div class="ov-value">${fourAll}</div>
+      <div class="ov-label">4★ 뽑은 횟수</div>
+    </div>
+    <div class="overview-card rate">
+      <div class="ov-value">${rateAll}%</div>
+      <div class="ov-label">5★ 뽑기 비율</div>
+    </div>
+  `;
+
+  // Banner cards
+  const bannersEl = document.getElementById('banners');
+  bannersEl.innerHTML = '';
+
+  const poolOrder = ['1','2','3','4','5','6','7'];
+  for (const key of poolOrder) {
+    if (!pulls[key] || pulls[key].length === 0) continue;
+
+    const pityInfo = BANNER_PITY[key] || { max: 80, guarantee: 0 };
+    const stats = analyzeBanner(pulls[key], pityInfo.max, pityInfo.guarantee);
+    const bannerName = BANNER_NAMES[key] || `Pool ${key}`;
+
+    const pityPct = Math.min(100, (stats.currentPity / stats.maxPity) * 100);
+    const pityColor = getPityColor(stats.currentPity, stats.maxPity);
+    const remaining = Math.max(0, stats.maxPity - stats.currentPity);
+
+    let guaranteeHTML = '';
+    if (stats.guarantee > 0) {
+      const gRemain = Math.max(0, stats.guarantee - stats.currentPity);
+      guaranteeHTML = ` | 확정까지: <strong>${gRemain}</strong>`;
+    }
+
+    let historyHTML = '';
+    if (stats.fiveStars.length > 0) {
+      historyHTML = stats.fiveStars.map(fs => {
+        const date = fs.time ? fs.time.substring(0, 10) : '';
+        const cls = getPullClass(fs.pulls);
+        const displayName = fs.name.length > 16 ? fs.name.substring(0, 14) + '..' : fs.name;
+        return `
+          <div class="history-item">
+            <span class="history-name" title="${fs.name}">${displayName}</span>
+            <span class="history-pulls ${cls}">${fs.pulls}</span>
+            <span class="history-date">${date}</span>
+          </div>`;
+      }).join('');
+    } else {
+      historyHTML = '<div style="color:var(--fg-muted);font-size:12px;">5★ 기록 없음</div>';
+    }
+
+    const cardHTML = `
+      <div class="banner-card" data-pool="${key}">
+        <div class="banner-top">
+          <div class="banner-content">
+            <div class="pity-section">
+              <h3>${bannerName}</h3>
+              <div class="pity-number" style="color:${pityColor}">${stats.currentPity}/${stats.maxPity}</div>
+              <div class="pity-label">5★ 천장</div>
+              <div class="pity-bar-wrap">
+                <div class="pity-bar-fill" style="width:${pityPct}%;background:${pityColor}"></div>
+              </div>
+              <div class="pity-remaining">
+                천장까지 <strong>${remaining}</strong>회${guaranteeHTML}
+              </div>
+              <div class="pity4-row">
+                <span class="pity4-num">${stats.currentPity4}/10</span>
+                <span class="pity4-label">4★ 천장</span>
+              </div>
+            </div>
+
+            <div class="stats-section">
+              <div class="stat-row"><span class="stat-label">총 뽑기</span><span class="stat-value">${stats.total}</span></div>
+              <div class="stat-row"><span class="stat-label">5★ 횟수</span><span class="stat-value" style="color:var(--gold)">${stats.fiveCount}</span></div>
+              <div class="stat-row"><span class="stat-label">4★ 횟수</span><span class="stat-value" style="color:var(--purple)">${stats.fourCount}</span></div>
+              <div class="stat-row"><span class="stat-label">5★ 비율</span><span class="stat-value" style="color:var(--green)">${stats.fiveRate}%</span></div>
+              <div class="stat-row"><span class="stat-label">평균 천장</span><span class="stat-value" style="color:var(--cyan)">${stats.avgPity}</span></div>
+            </div>
+
+            <div class="history-section">
+              <h4>5★ 히스토리</h4>
+              <div class="history-scroll">
+                ${historyHTML}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>`;
+
+    bannersEl.insertAdjacentHTML('beforeend', cardHTML);
+  }
+}
+</script>
+</body>
+</html>
