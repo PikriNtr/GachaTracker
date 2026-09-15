@@ -1,5 +1,6 @@
-from typing import Dict, Any
-from analytics.simulation import PROBABILITY_MODELS, DEFAULT_GAME
+from typing import Any, Dict
+
+from analytics.simulation import DEFAULT_GAME, PROBABILITY_MODELS
 
 ASTRITE_PER_PULL = 160
 
