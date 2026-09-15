@@ -180,6 +180,120 @@ class Repository:
             conn.commit()
         return removed
 
+    # ------------------------------------------------------------------
+    # Banner schedule (crowdsourced: what banner runs in each pool, when)
+    # ------------------------------------------------------------------
+    def _init_banner_schedule(self, cursor) -> None:
+        cursor.execute("""
+        CREATE TABLE IF NOT EXISTS banner_schedule (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            game_id TEXT NOT NULL,
+            card_pool_type TEXT NOT NULL,
+            banner_name TEXT NOT NULL,
+            start_time TEXT NOT NULL,
+            end_time TEXT NOT NULL,
+            created_by TEXT NOT NULL,
+            created_at TEXT NOT NULL,
+            UNIQUE(game_id, card_pool_type, banner_name, start_time)
+        )
+        """)
+        cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_banner_schedule_lookup
+        ON banner_schedule(game_id, card_pool_type, start_time)
+        """)
+
+    def upsert_banner_schedule(self, game_id: str, card_pool_type: str, banner_name: str,
+                               start_time: str, end_time: str, created_by: str) -> int:
+        """Inserts or updates a scheduled banner window.
+
+        Canonical timestamps are "%Y-%m-%d %H:%M:%S". Returns the row id.
+        """
+        from datetime import datetime
+        now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            self._init_banner_schedule(cursor)
+            cursor.execute("""
+            INSERT INTO banner_schedule
+                (game_id, card_pool_type, banner_name, start_time, end_time, created_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(game_id, card_pool_type, banner_name, start_time)
+            DO UPDATE SET end_time = excluded.end_time, created_by = excluded.created_by,
+                          created_at = excluded.created_at
+            """, (game_id, str(card_pool_type), banner_name, start_time, end_time, created_by, now))
+            conn.commit()
+            return cursor.lastrowid
+
+    def get_banner_windows(self, game_id: str, card_pool_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """All scheduled windows for a game (optionally one pool), start-ordered."""
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            self._init_banner_schedule(cursor)
+            if card_pool_type is not None:
+                cursor.execute("""
+                SELECT id, game_id, card_pool_type, banner_name, start_time, end_time, created_by, created_at
+                FROM banner_schedule WHERE game_id = ? AND card_pool_type = ?
+                ORDER BY start_time ASC
+                """, (game_id, str(card_pool_type)))
+            else:
+                cursor.execute("""
+                SELECT id, game_id, card_pool_type, banner_name, start_time, end_time, created_by, created_at
+                FROM banner_schedule WHERE game_id = ?
+                ORDER BY start_time ASC, card_pool_type ASC
+                """, (game_id,))
+            return [dict(r) for r in cursor.fetchall()]
+
+    def get_active_banners(self, game_id: str, now: Optional[str] = None) -> Dict[str, Dict[str, Any]]:
+        """Currently-running banner per pool.
+
+        Returns {card_pool_type: {banner_name, start_time, end_time, id}}.
+        A window is active when start_time <= now <= end_time (string compare is
+        safe because canonical timestamps are zero-padded and fixed-width).
+        """
+        if now is None:
+            from datetime import datetime
+            now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        active: Dict[str, Dict[str, Any]] = {}
+        for row in self.get_banner_windows(game_id):
+            if row["start_time"] <= now <= row["end_time"]:
+                # latest-starting window wins if two overlap
+                cur = active.get(row["card_pool_type"])
+                if cur is None or row["start_time"] > cur["start_time"]:
+                    active[row["card_pool_type"]] = row
+        return active
+
+    def get_upcoming_banners(self, game_id: str, now: Optional[str] = None) -> Dict[str, List[Dict[str, Any]]]:
+        """Scheduled-but-not-yet-started windows, per pool, start-ordered."""
+        if now is None:
+            from datetime import datetime
+            now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        upcoming: Dict[str, List[Dict[str, Any]]] = {}
+        for row in self.get_banner_windows(game_id):
+            if row["start_time"] > now:
+                upcoming.setdefault(row["card_pool_type"], []).append(row)
+        return upcoming
+
+    def delete_banner_windows(self, game_id: str, card_pool_type: str,
+                              only_active: bool = False, now: Optional[str] = None) -> int:
+        """Removes scheduled windows for a pool (all, or only the currently active one)."""
+        if now is None:
+            from datetime import datetime
+            now = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            self._init_banner_schedule(cursor)
+            if only_active:
+                cursor.execute("""
+                DELETE FROM banner_schedule
+                WHERE game_id = ? AND card_pool_type = ? AND start_time <= ? AND end_time >= ?
+                """, (game_id, str(card_pool_type), now, now))
+            else:
+                cursor.execute("DELETE FROM banner_schedule WHERE game_id = ? AND card_pool_type = ?",
+                               (game_id, str(card_pool_type)))
+            removed = cursor.rowcount
+            conn.commit()
+        return removed
+
     def get_pulls(self, discord_id: str, game_id: str = "wuthering_waves", card_pool_type: Optional[str] = None) -> List[Pull]:
         with self._get_conn() as conn:
             cursor = conn.cursor()
