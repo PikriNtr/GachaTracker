@@ -7,19 +7,24 @@ from discord.ext import commands
 from analytics import (
     DEFAULT_GAME,
     GAME_BANNER_CONFIGS,
+    GAME_DISPLAY_NAMES,
+    GAME_ORDER,
     calculate_astrite_cost,
     calculate_deep_statistics,
     calculate_pity_summary,
     get_game_banner_names,
+    unified_profile,
 )
 from bot.embeds import (
     C_GOLD,
     C_GREEN,
     C_GREY,
+    C_PURPLE,
     C_RED,
     FOOTER,
     calculate_embed,
     history_embed,
+    make_progress_bar,
     no_data_embed,
     pity_embed,
     stats_embed,
@@ -365,6 +370,86 @@ class GachaCog(commands.Cog):
             )
             cancelled.set_footer(text=FOOTER)
             await interaction.followup.send(embed=cancelled, ephemeral=True)
+
+    # ------------------------------------------------------------------
+    # /profile — unified multi-game view + cross-game stats
+    # ------------------------------------------------------------------
+    @app_commands.command(name="profile", description="Your unified profile across all games, with cross-game statistics")
+    async def profile_cmd(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        discord_id = str(interaction.user.id)
+
+        pulls_by_game = {}
+        for gid in GAME_ORDER:
+            pulls_by_game[gid] = repo.get_pulls(discord_id, gid)
+        profile = unified_profile(pulls_by_game)
+
+        if not profile["games"]:
+            e = discord.Embed(
+                title="No Data Yet",
+                description="Import at least one game with `/import <url>` to build your profile.",
+                color=C_GREY,
+            )
+            e.set_footer(text=FOOTER)
+            await interaction.followup.send(embed=e, ephemeral=True)
+            return
+
+        player_label = ", ".join(
+            repo.get_account_by_discord_id(discord_id, gid).player_id or "?"
+            for gid in profile["games"]
+            if repo.get_account_by_discord_id(discord_id, gid)
+        ) or discord_id
+
+        # Chart first: user sees the visual with this command
+        from analytics import generate_profile_chart
+        chart_buf = generate_profile_chart(profile, player_label)
+        file = discord.File(fp=chart_buf, filename="profile_chart.png")
+
+        embed = discord.Embed(
+            title=f"Cross-Game Profile  •  {player_label}",
+            color=C_PURPLE,
+        )
+        embed.description = (
+            f"**{profile['total_pulls']:,}** lifetime pulls  •  "
+            f"**{profile['total_5']}** five-stars ({profile['rate_5']:.2f}%)  •  "
+            f"~**{profile['total_currency']:,}** currency equivalent"
+        )
+
+        for gid in GAME_ORDER:
+            g = profile["games"].get(gid)
+            if not g:
+                continue
+            display = GAME_DISPLAY_NAMES[gid]
+            guar = " ✅ Guaranteed" if g["is_guaranteed"] else ""
+            bar = make_progress_bar(g["featured_pity"], g["featured_cap"])
+            embed.add_field(
+                name=display,
+                value=(
+                    f"Pulls: **{g['total_pulls']:,}**  •  5★: **{g['count_5']}** ({g['rate_5']:.2f}%)  •  "
+                    f"4★: **{g['count_4']}**\n"
+                    f"{g['featured_name']}: **{g['featured_pity']} / {g['featured_cap']}**  `{bar}`{guar}\n"
+                    f"50/50: **{g['won_5050']}W / {g['lost_5050']}L** ({g['win_rate_5050']:.0f}%)  •  "
+                    f"Avg pity: **{g['avg_pity']:.1f}**"
+                ),
+                inline=False,
+            )
+
+        # Cross-game lifetime stats
+        wr = profile["lifetime_5050_win_rate"]
+        embed.add_field(
+            name="Cross-Game Lifetime",
+            value=(
+                f"Pulls: **{profile['total_pulls']:,}**  •  5★: **{profile['total_5']}**  •  "
+                f"4★: **{profile['total_4']}**\n"
+                f"Overall 5★ rate: **{profile['rate_5']:.2f}%**  •  "
+                f"Lifetime 50/50 win rate: **{wr:.1f}%**"
+            ),
+            inline=False,
+        )
+
+        embed.set_image(url="attachment://profile_chart.png")
+        embed.set_footer(text=FOOTER)
+        await interaction.followup.send(embed=embed, file=file)
 
     # ------------------------------------------------------------------
     # /chart
