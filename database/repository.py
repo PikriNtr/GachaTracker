@@ -165,6 +165,21 @@ class Repository:
             conn.commit()
         return inserted_count
 
+    def delete_user_data(self, discord_id: str, game_id: str) -> int:
+        """Deletes all pulls and the account row for a discord user + game.
+
+        Returns the number of pulls removed. Safe to call when nothing exists.
+        """
+        with self._get_conn() as conn:
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM pulls WHERE discord_id = ? AND game_id = ?",
+                           (discord_id, game_id))
+            removed = cursor.rowcount
+            cursor.execute("DELETE FROM accounts WHERE discord_id = ? AND game_id = ?",
+                           (discord_id, game_id))
+            conn.commit()
+        return removed
+
     def get_pulls(self, discord_id: str, game_id: str = "wuthering_waves", card_pool_type: Optional[str] = None) -> List[Pull]:
         with self._get_conn() as conn:
             cursor = conn.cursor()
