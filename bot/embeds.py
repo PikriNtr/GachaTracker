@@ -1,7 +1,8 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import discord
 
+from analytics.deep_stats import EARLY_PITY_THRESHOLD
 from analytics.pity import DEFAULT_GAME, GAME_BANNER_CONFIGS
 
 C_BLUE   = 0x4B8DF8
@@ -209,7 +210,8 @@ def calculate_embed(player_id: str, summary: Dict[str, Dict[str, Any]], calc: Di
     return e
 
 def stats_embed(player_id: str, pulls: List[Any], summary: Dict[str, Dict[str, Any]],
-                game_id: str = DEFAULT_GAME) -> discord.Embed:
+                game_id: str = DEFAULT_GAME,
+                deep: Optional[Dict[str, Dict[str, Any]]] = None) -> discord.Embed:
     ui = game_ui(game_id)
     cfg = game_config(game_id)
     currency = ui["currency"]
@@ -254,6 +256,21 @@ def stats_embed(player_id: str, pulls: List[Any], summary: Dict[str, Dict[str, A
         value=f"Won: **{won_5050}**  •  Lost: **{lost_5050}**  •  Win Rate: **{win_pct:.1f}%**",
         inline=False
     )
+
+    if deep:
+        featured = cfg["featured_pool"]
+        d = deep.get(featured, {})
+        if d.get("count"):
+            spread = f"Min **{d['min']}**  •  Median **{d['median']:.0f}**  •  Max **{d['max']}**  •  σ **{d['stddev']:.1f}**"
+            quartiles = f"IQR **{d['p25']:.0f}–{d['p75']:.0f}**  •  Early (≤{EARLY_PITY_THRESHOLD}): **{d['early_count']}** of {d['count']}"
+            e.add_field(name=f"5★ Pity Distribution ({p1.get('name', 'Featured')})",
+                        value=spread + "\n" + quartiles, inline=False)
+        if d.get("char_5star") or d.get("weapon_5star"):
+            e.add_field(
+                name="5★ Type Split (all banners)",
+                value=f"Characters: **{d['char_5star']}**  •  Weapons/Cones: **{d['weapon_5star']}**",
+                inline=False,
+            )
 
     e.set_footer(text=FOOTER)
     return e
