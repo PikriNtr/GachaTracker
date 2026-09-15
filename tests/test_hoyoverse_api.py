@@ -6,8 +6,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from games.hoyoverse_api import parse_gacha_url, GAME_API_CONFIGS, HoyoverseAPIError
-
+from games.hoyoverse_api import GAME_API_CONFIGS, HoyoverseAPIError, parse_gacha_url
 
 GENSHIN_URL = ("https://public-operation-hk4e-sg.hoyoverse.com/gacha_info/api/getGachaLog"
                "?authkey_ver=1&sign_type=2&auth_appid=webview_gacha&lang=en"
