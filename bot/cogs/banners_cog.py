@@ -5,7 +5,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 
-from analytics import DEFAULT_GAME, GAME_BANNER_CONFIGS, GAME_DISPLAY_NAMES
+from analytics import DEFAULT_GAME, GAME_BANNER_CONFIGS, GAME_DISPLAY_NAMES, GAME_ORDER
 from analytics.schedule_time import canonical, now_canonical, parse_timestamp
 from bot.embeds import C_BLUE, C_GREEN, C_GREY, C_RED, FOOTER
 from database import Repository
@@ -18,10 +18,27 @@ GAME_CHOICES = [
     app_commands.Choice(name="Honkai: Star Rail", value="honkai_star_rail"),
 ]
 
+# Pool picker: Discord choices are static, so one combined dropdown across all
+# games. Value encodes "game_id:pool_id" so the game is derived from the pick.
+# 17 entries fits Discord's 25-choice limit.
+def _all_pool_choices() -> list[app_commands.Choice]:
+    choices = []
+    for gid in GAME_ORDER:
+        cfg = GAME_BANNER_CONFIGS[gid]
+        display = GAME_DISPLAY_NAMES[gid]
+        for pid in cfg["pools"]:
+            choices.append(app_commands.Choice(
+                name=f"{display} — {cfg['names'][pid]}", value=f"{gid}:{pid}"))
+    return choices
 
-def _pool_choices(game_id: str) -> list[app_commands.Choice]:
-    cfg = GAME_BANNER_CONFIGS.get(game_id, GAME_BANNER_CONFIGS[DEFAULT_GAME])
-    return [app_commands.Choice(name=cfg["names"][pid], value=pid) for pid in cfg["pools"]]
+
+POOL_CHOICES = _all_pool_choices()
+
+
+def _resolve_pool_choice(choice_value: str) -> tuple[str, str]:
+    """Splits a POOL_CHOICES value into (game_id, pool_id)."""
+    game_id, pool_id = choice_value.split(":", 1)
+    return game_id, pool_id
 
 
 class BannersCog(commands.Cog):
@@ -58,6 +75,7 @@ class BannersCog(commands.Cog):
             await interaction.response.send_message(embed=e)
             return
 
+        missing_hint = False
         for pool_id in cfg["pools"]:
             pool_name = cfg["names"].get(pool_id, f"Pool {pool_id}")
             a = active.get(pool_id)
@@ -68,6 +86,7 @@ class BannersCog(commands.Cog):
                 )
             else:
                 value = "No active banner recorded"
+                missing_hint = True
             ups = upcoming.get(pool_id, [])
             if ups:
                 next_lines = [
@@ -77,48 +96,33 @@ class BannersCog(commands.Cog):
                 value += "\n**Upcoming:**\n" + "\n".join(next_lines)
             e.add_field(name=pool_name, value=value, inline=False)
 
+        if missing_hint:
+            e.description += (
+                "\n\n💡 Seeing pools without a current banner? "
+                "Anyone can fix that with `/bannerset`."
+            )
+
         e.set_footer(text=FOOTER)
         await interaction.response.send_message(embed=e)
 
     # ------------------------------------------------------------------
     @app_commands.command(name="bannerset", description="Add or update a banner schedule window (anyone can contribute)")
     @app_commands.describe(
-        game="Which game",
-        pool="Which banner pool",
+        pool="Game + banner pool",
         banner="Banner name, e.g. 'Yanqing - Genshin of Frost'",
         start="Start time, e.g. 2025-01-15 11:00 (UTC)",
         end="End time, e.g. 2025-02-05 17:59 (UTC)",
     )
-    @app_commands.choices(game=GAME_CHOICES)
+    @app_commands.choices(pool=POOL_CHOICES)
     async def bannerset_cmd(self, interaction: discord.Interaction,
-                            game: Optional[app_commands.Choice[str]] = None,
-                            pool: Optional[str] = None,
-                            banner: Optional[str] = None,
-                            start: Optional[str] = None,
-                            end: Optional[str] = None):
+                            pool: app_commands.Choice[str],
+                            banner: str,
+                            start: str,
+                            end: str):
         await interaction.response.defer(ephemeral=True)
-        game_id = game.value if game else "wuthering_waves"
-        cfg = GAME_BANNER_CONFIGS.get(game_id, GAME_BANNER_CONFIGS[DEFAULT_GAME])
-        display = GAME_DISPLAY_NAMES.get(game_id, game_id)
-
-        # Validate pool: accept pool id or (part of) pool name
-        pool_id = None
-        if pool:
-            pool_text = pool.strip()
-            if pool_text in cfg["pools"]:
-                pool_id = pool_text
-            else:
-                for pid in cfg["pools"]:
-                    if pool_text.lower() in cfg["names"][pid].lower():
-                        pool_id = pid
-                        break
-        if pool_id is None:
-            valid = ", ".join(f"`{pid}` = {cfg['names'][pid]}" for pid in cfg["pools"])
-            e = discord.Embed(title="Unknown Pool",
-                              description=f"Pick one of: {valid}", color=C_RED)
-            e.set_footer(text=FOOTER)
-            await interaction.followup.send(embed=e, ephemeral=True)
-            return
+        game_id, pool_id = _resolve_pool_choice(pool.value)
+        cfg = GAME_BANNER_CONFIGS[game_id]
+        display = GAME_DISPLAY_NAMES[game_id]
 
         if not banner or not banner.strip():
             e = discord.Embed(title="Missing Banner Name",
@@ -179,35 +183,16 @@ class BannersCog(commands.Cog):
     # ------------------------------------------------------------------
     @app_commands.command(name="bannerremove", description="Remove banner schedule windows for a pool")
     @app_commands.describe(
-        game="Which game",
-        pool="Which pool to clear",
+        pool="Game + pool to clear",
         only_current="Only remove the currently-active window (default: remove all for that pool)",
     )
-    @app_commands.choices(game=GAME_CHOICES)
+    @app_commands.choices(pool=POOL_CHOICES)
     async def bannerremove_cmd(self, interaction: discord.Interaction,
-                               game: Optional[app_commands.Choice[str]] = None,
-                               pool: Optional[str] = None,
+                               pool: app_commands.Choice[str],
                                only_current: Optional[bool] = False):
         await interaction.response.defer(ephemeral=True)
-        game_id = game.value if game else "wuthering_waves"
-        cfg = GAME_BANNER_CONFIGS.get(game_id, GAME_BANNER_CONFIGS[DEFAULT_GAME])
-
-        pool_id = None
-        if pool:
-            pool_text = pool.strip()
-            if pool_text in cfg["pools"]:
-                pool_id = pool_text
-            else:
-                for pid in cfg["pools"]:
-                    if pool_text.lower() in cfg["names"][pid].lower():
-                        pool_id = pid
-                        break
-        if pool_id is None:
-            valid = ", ".join(f"`{pid}` = {cfg['names'][pid]}" for pid in cfg["pools"])
-            e = discord.Embed(title="Unknown Pool", description=f"Pick one of: {valid}", color=C_RED)
-            e.set_footer(text=FOOTER)
-            await interaction.followup.send(embed=e, ephemeral=True)
-            return
+        game_id, pool_id = _resolve_pool_choice(pool.value)
+        cfg = GAME_BANNER_CONFIGS[game_id]
 
         removed = repo.delete_banner_windows(game_id, pool_id, only_active=bool(only_current))
         scope = "active window" if only_current else "all windows"
