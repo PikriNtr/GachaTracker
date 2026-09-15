@@ -1,23 +1,29 @@
+from typing import Optional
+
 import discord
 from discord import app_commands
 from discord.ext import commands
-from typing import Optional, Dict
 
-from database import Repository
-from core.registry import registry
-from analytics import calculate_pity_summary, calculate_astrite_cost, get_game_banner_names, GAME_BANNER_CONFIGS, DEFAULT_GAME
+from analytics import (
+    DEFAULT_GAME,
+    GAME_BANNER_CONFIGS,
+    calculate_astrite_cost,
+    calculate_pity_summary,
+    get_game_banner_names,
+)
 from bot.embeds import (
-    no_data_embed,
-    pity_embed,
-    calculate_embed,
-    stats_embed,
-    history_embed,
+    C_GOLD,
     C_GREEN,
     C_RED,
-    C_GOLD,
-    FOOTER
+    FOOTER,
+    calculate_embed,
+    history_embed,
+    no_data_embed,
+    pity_embed,
+    stats_embed,
 )
-
+from core.registry import registry
+from database import Repository
 
 repo = Repository()
 
@@ -314,7 +320,7 @@ class GachaCog(commands.Cog):
         if not account:
             return
 
-        from analytics import run_monte_carlo_simulation, generate_simulation_chart
+        from analytics import generate_simulation_chart, run_monte_carlo_simulation
         plugin = _plugin_for(game_id)
         sim_res = run_monte_carlo_simulation(pulls, num_sims=10000, game_id=game_id)
         chart_buf = generate_simulation_chart(sim_res, account.player_id,
