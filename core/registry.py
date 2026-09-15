@@ -1,5 +1,7 @@
 from typing import Dict, Optional
+
 from .game import GachaGame
+
 
 class PluginRegistry:
     def __init__(self):
