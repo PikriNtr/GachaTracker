@@ -461,6 +461,7 @@ class GachaCog(commands.Cog):
         app_commands.Choice(name="Pull Timeline", value="timeline"),
         app_commands.Choice(name="Rarity Distribution", value="rarity"),
         app_commands.Choice(name="Banner Comparison", value="banners"),
+        app_commands.Choice(name="Banner Schedule", value="schedule"),
     ])
     async def chart_cmd(self, interaction: discord.Interaction,
                         game: Optional[app_commands.Choice[str]] = None,
@@ -468,6 +469,29 @@ class GachaCog(commands.Cog):
         await interaction.response.defer()
         game_id = game.value if game else "wuthering_waves"
         chart_type = type.value if type else "pity"
+
+        from analytics import charts
+        plugin = _plugin_for(game_id)
+        game_name = plugin.name if plugin else ""
+
+        # The banner schedule is crowdsourced, game-global data — it does not
+        # depend on the invoker having imported their own pulls.
+        if chart_type == "schedule":
+            windows = repo.get_banner_windows(game_id)
+            chart_buf = charts.generate_banner_schedule_chart(windows, str(interaction.user.id),
+                                                              game_id, game_name)
+            file = discord.File(fp=chart_buf, filename="schedule_chart.png")
+            embed = discord.Embed(
+                title=f"Banner Schedule  Player {interaction.user.id}",
+                description="Rows = banner pools  •  Bars = scheduled windows  •  Dashed line = now (UTC)\n"
+                            "Maintain the schedule with `/bannerset` / `/bannerremove`.",
+                color=C_GREEN,
+            )
+            embed.set_image(url="attachment://schedule_chart.png")
+            embed.set_footer(text=FOOTER)
+            await interaction.followup.send(embed=embed, file=file)
+            return
+
         account, pulls = await self._load_account(interaction, game_id, ephemeral=False)
         if not account:
             return
