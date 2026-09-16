@@ -82,14 +82,6 @@ body {
   background: radial-gradient(circle, #a855f7, transparent);
 }
 
-.bg-glow-3 {
-  top: 40%;
-  left: 60%;
-  width: 450px;
-  height: 450px;
-  background: radial-gradient(circle, #38bdf8, transparent);
-}
-
 /* Glass panel utility */
 .glass-panel {
   background: var(--bg-card);
@@ -247,32 +239,6 @@ body {
 .search-input-group input:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--primary-glow);
-}
-
-.quick-tags {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-.chip {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-subtle);
-  color: #cbd5e1;
-  padding: 0.25rem 0.75rem;
-  border-radius: 20px;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.chip:hover {
-  background: rgba(99, 102, 241, 0.2);
-  border-color: var(--primary);
-  color: #fff;
 }
 
 /* Buttons */
