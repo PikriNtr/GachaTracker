@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 matplotlib.use('Agg')  # noqa: E402  (must run before pyplot usage; non-interactive backend)
 
-from typing import List  # noqa: E402
+from typing import Any, Dict, List  # noqa: E402
 
 from analytics.pity import DEFAULT_GAME, GAME_BANNER_CONFIGS, calculate_pity_summary
 from core.models import Pull
@@ -266,6 +266,70 @@ def generate_banner_comparison_chart(pulls: List[Pull], player_id: str, game_id:
     lines2, labels2 = ax2.get_legend_handles_labels()
     ax.legend(lines1 + lines2, labels1 + labels2, facecolor=_DARK_AX, edgecolor=_GRID,
               labelcolor=_TEXT, loc='upper right', fontsize=8)
+
+    return _save(fig)
+
+
+def generate_banner_schedule_chart(windows: List[Dict[str, Any]], player_id: str,
+                                   game_id: str = DEFAULT_GAME, game_name: str = "") -> io.BytesIO:
+    """Gantt-style chart of the crowdsourced banner schedule for one game.
+
+    `windows` is the list from Repository.get_banner_windows(game_id): dicts with
+    card_pool_type, banner_name, start_time, end_time (canonical timestamps).
+    One row per pool (banner-config order), one bar per scheduled window,
+    colored by banner name; a dashed 'Now' line marks the current UTC time.
+    """
+    cfg = GAME_BANNER_CONFIGS.get(game_id, GAME_BANNER_CONFIGS[DEFAULT_GAME])
+    game_label = f"  •  {game_name}" if game_name else ""
+
+    if not windows:
+        fig, ax = plt.subplots(figsize=(9, 4.2), dpi=150)
+        _style_dark(fig, ax)
+        ax.text(0.5, 0.5, "No banner schedule recorded yet — use /bannerset",
+                ha='center', va='center', color=_TEXT, fontsize=11, transform=ax.transAxes)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        return _save(fig)
+
+    pool_names = {str(pid): cfg["names"].get(str(pid), f"Pool {pid}") for pid in cfg["pools"]}
+    # Y rows: one per configured pool (config order); unknown pools appended.
+    y_labels: list[str] = []
+    for pid in cfg["pools"]:
+        y_labels.append(pool_names[str(pid)])
+    extra = sorted({str(w["card_pool_type"]) for w in windows} - set(pool_names))
+    y_labels.extend(f"Pool {e}" for e in extra)
+    y_pos = {label: i for i, label in enumerate(y_labels)}
+    label_by_pool = {**pool_names, **{e: f"Pool {e}" for e in extra}}
+
+    fig, ax = plt.subplots(figsize=(9, max(4.2, 0.55 * len(y_labels) + 1.6)), dpi=150)
+    _style_dark(fig, ax)
+
+    colors = ['#4B8DF8', '#9B72CF', '#E8B84B', '#4CAF7D', '#E05252', '#FF9F1C', '#2EC4B6']
+    color_pool = {label: colors[i % len(colors)] for i, label in enumerate(y_labels)}
+
+    now = datetime.utcnow()
+    for w in windows:
+        pid = str(w["card_pool_type"])
+        start, end = _parse_time(w["start_time"]), _parse_time(w["end_time"])
+        if start is datetime.min or end is datetime.min or end <= start:
+            continue
+        label = label_by_pool.get(pid, f"Pool {pid}")
+        name = str(w["banner_name"])
+        ax.barh(y_pos[label], width=end - start, left=start, height=0.62,
+                color=color_pool[label], edgecolor=_EDGE, linewidth=1.1, alpha=0.92)
+        mid = start + (end - start) / 2
+        ax.text(mid, y_pos[label], name[:36], ha='center', va='center',
+                color='#FFFFFF', fontsize=8, fontweight='bold')
+
+    ax.axvline(now, color='#E8B84B', linestyle='--', linewidth=1.8, alpha=0.9, label='Now (UTC)')
+
+    ax.set_yticks(list(y_pos.values()))
+    ax.set_yticklabels(y_labels, color=_TEXT, fontsize=9)
+    ax.invert_yaxis()  # first configured pool on top
+    ax.grid(True, axis='x', color=_GRID, alpha=0.3)
+    ax.set_title(f'Banner Schedule{game_label}  •  Player {player_id}',
+                 color='#FFFFFF', fontsize=11, fontweight='bold', pad=12)
+    ax.legend(facecolor=_DARK_AX, edgecolor=_GRID, labelcolor=_TEXT, loc='upper left', fontsize=8)
 
     return _save(fig)
 
