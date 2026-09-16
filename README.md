@@ -206,14 +206,29 @@ discord-tracker/
 The core is also exposed as a standalone HTTP service — same engines, same SQLite DB:
 
 ```bash
+# Navigate to the gacha_tracker directory first
+cd gacha_tracker
+
 pip install fastapi uvicorn httpx
 set API_ENABLED=1                 # optional flag for tooling
 set API_KEY=your-secret-key       # required for write endpoints
-uvicorn api.main:app --port 8000  # from gacha_tracker/
+uvicorn api.main:app --port 8000  # starts server at http://127.0.0.1:8000
 ```
+
+### Access & Documentation
+
+Once the server is running, visit:
+* **Interactive Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs) *(explore and test all endpoints)*
+* **ReDoc UI**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+* **Health Check**: [http://localhost:8000/health](http://localhost:8000/health)
+
+> **Note:** The root URL (`/`) does not serve a page. Access `/docs` directly in your browser to view the API dashboard.
+
+### Available Endpoints
 
 | Endpoint                            | Description                                                |
 | ----------------------------------- | ---------------------------------------------------------- |
+| `GET /health`                       | Service health status (`{"status": "ok"}`)                 |
 | `GET /games`                        | Registered games + banner configs                          |
 | `GET /accounts/{id}`                | A user's game accounts + pull counts                       |
 | `GET /accounts/{id}/pulls/{game}`   | Pull history (paginated; filter by pool/rarity)            |
@@ -224,7 +239,7 @@ uvicorn api.main:app --port 8000  # from gacha_tracker/
 | `POST /accounts/{id}/import/{game}` | Import from a gacha URL — **requires `X-API-Key`**         |
 | `DELETE /accounts/{id}/{game}`      | Delete a user's data for a game — **requires `X-API-Key`** |
 
-Reads are open by default; set `API_REQUIRE_KEY_FOR_READS=1` to gate them behind the key too. Interactive docs: `http://localhost:8000/docs`.
+Reads are open by default; set `API_REQUIRE_KEY_FOR_READS=1` to gate them behind the key too.
 
 ---
 
