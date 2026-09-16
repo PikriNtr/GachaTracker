@@ -1,11 +1,27 @@
 /**
- * GachaTracker Interactive Web Dashboard Logic (Phase 12)
+ * GachaTracker Web Dashboard logic.
+ *
+ * All rendering is driven by the real API response shapes:
+ * - GET /accounts/{id}                      -> {accounts: [{discord_id, game_id, player_id, total_pulls}]}
+ * - GET /accounts/{id}/pity/{game}          -> {banners: {pool: {name, current_pity, max_pity,
+ *                                               total_pulls, history_5star[], is_guaranteed,
+ *                                               won_5050, lost_5050}}}
+ * - GET /accounts/{id}/stats/{game}         -> {pools: {pool: {count, median, min, max, stddev,
+ *                                               p25, p75, early_count, char_5star, weapon_5star}}}
+ * - GET /accounts/{id}/pulls/{game}         -> {total, limit, offset, items: [PullOut]}
+ * - GET /accounts/{id}/profile              -> {player_label, profile: {games: {game: {...}},
+ *                                               total_pulls, total_5, total_4, rate_5,
+ *                                               lifetime_5050_win_rate, total_currency}}
+ * - GET /banners/{game}                     -> {game_id, now, active: {pool: window},
+ *                                               upcoming: {pool: [window]}};
+ *   window = {id, card_pool_type, banner_name, start_time, end_time, created_by, created_at}
+ * - GET /games                              -> {games: [{game_id, name: {pool: name}, pools, pity_caps}]}
  */
 
 const API_BASE = window.location.origin;
 
 // State management
-let state = {
+const state = {
   currentDiscordId: '',
   currentGame: 'wuthering_waves',
   activeTab: 'wuthering_waves',
@@ -18,21 +34,9 @@ let state = {
 
 // Game display configurations
 const GAME_META = {
-  wuthering_waves: {
-    name: 'Wuthering Waves',
-    icon: '🌊',
-    currency: 'Astrites'
-  },
-  genshin_impact: {
-    name: 'Genshin Impact',
-    icon: '🌌',
-    currency: 'Primogems'
-  },
-  honkai_star_rail: {
-    name: 'Honkai: Star Rail',
-    icon: '🚂',
-    currency: 'Stellar Jades'
-  }
+  wuthering_waves: { name: 'Wuthering Waves', icon: '\u{1F30A}' },
+  genshin_impact: { name: 'Genshin Impact', icon: '\u{1F30C}' },
+  honkai_star_rail: { name: 'Honkai: Star Rail', icon: '\u{1F682}' }
 };
 
 // Initialization
@@ -40,10 +44,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   await checkApiHealth();
   await loadGamesMetadata();
-  
+
   // Check URL parameters for discord_id
-  const urlParams = new URLSearchParams(window.location.search);
-  const discordIdParam = urlParams.get('id');
+  const discordIdParam = new URLSearchParams(window.location.search).get('id');
   if (discordIdParam) {
     document.getElementById('discordIdInput').value = discordIdParam;
     await loadUserData(discordIdParam);
@@ -65,10 +68,7 @@ function setupEventListeners() {
 
   // Tab navigation
   document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const tab = btn.getAttribute('data-tab');
-      switchTab(tab);
-    });
+    btn.addEventListener('click', () => switchTab(btn.getAttribute('data-tab')));
   });
 
   // Table filters
@@ -121,7 +121,7 @@ async function checkApiHealth() {
   }
 }
 
-// Load Games Metadata
+// Load Games Metadata (pool name lookups)
 async function loadGamesMetadata() {
   try {
     const res = await fetch(`${API_BASE}/games`);
@@ -136,11 +136,14 @@ async function loadGamesMetadata() {
   }
 }
 
-// Quick lookup button handler
-window.quickLookup = function(id) {
-  document.getElementById('discordIdInput').value = id;
-  loadUserData(id);
-};
+function poolName(gameId, poolId) {
+  const config = state.gamesConfig[gameId];
+  return (config && config.names && config.names[poolId]) || `Pool ${poolId}`;
+}
+
+function gameName(gameId) {
+  return (GAME_META[gameId] || { name: gameId }).name;
+}
 
 // Switch Tab
 function switchTab(tab) {
@@ -163,7 +166,7 @@ function switchTab(tab) {
       document.getElementById('unifiedProfileView').classList.remove('hidden');
       loadUnifiedProfile(state.currentDiscordId);
     } else {
-      showAlert('Please enter a Discord ID first to view cross-game profile.');
+      showAlert('Enter a Discord ID first to view the cross-game profile.');
       document.getElementById('welcomeState').classList.remove('hidden');
     }
   } else {
@@ -188,7 +191,7 @@ async function loadUserData(discordId) {
     const res = await fetch(`${API_BASE}/accounts/${discordId}`);
     if (!res.ok) {
       if (res.status === 404) {
-        throw new Error(`No account data found for Discord ID: "${discordId}". Import history first via bot or API.`);
+        throw new Error(`No account data found for Discord ID "${discordId}". Import history first via the bot or API.`);
       }
       throw new Error(`Failed to load account data (status ${res.status}).`);
     }
@@ -196,7 +199,6 @@ async function loadUserData(discordId) {
     const data = await res.json();
     state.loadedAccounts = data.accounts || [];
 
-    // If current tab is not a game, switch to first found game or stay
     if (['unified_profile', 'banner_schedule'].includes(state.activeTab)) {
       switchTab(state.activeTab);
     } else {
@@ -220,20 +222,27 @@ async function loadUserData(discordId) {
 
 // Render Game Dashboard
 async function renderGameDashboard(discordId, gameId) {
-  const meta = GAME_META[gameId] || { name: gameId, icon: '🎮', currency: 'Pulls' };
-  
+  const meta = GAME_META[gameId] || { name: gameId, icon: '🎮' };
+
   document.getElementById('viewGameTitle').textContent = meta.name;
   document.getElementById('gameAvatarBadge').textContent = meta.icon;
   document.getElementById('discordIdLabel').textContent = discordId;
+
+  // Reset header stats until data arrives
+  document.getElementById('stat5StarCount').textContent = '0';
+  document.getElementById('stat4StarCount').textContent = '--';
+  document.getElementById('statAvgPity').textContent = '--';
 
   // Find account info
   const acc = state.loadedAccounts.find(a => a.game_id === gameId);
   if (!acc) {
     document.getElementById('playerUidLabel').textContent = 'No Account Linked';
     document.getElementById('statTotalPulls').textContent = '0';
-    document.getElementById('pityCardsContainer').innerHTML = `<div class="pity-card"><p style="color: var(--text-dim)">No pull data imported for ${meta.name}.</p></div>`;
+    document.getElementById('pityCardsContainer').innerHTML =
+      `<p style="color: var(--text-dim)">No pull data imported for ${escapeHtml(meta.name)}.</p>`;
     document.getElementById('analyticsContainer').innerHTML = '';
-    document.getElementById('pullsTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No pulls found.</td></tr>';
+    document.getElementById('pullsTableBody').innerHTML =
+      '<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No pulls found.</td></tr>';
     return;
   }
 
@@ -256,10 +265,10 @@ function populatePoolFilter(gameId) {
   select.innerHTML = '<option value="">All Banner Pools</option>';
   const config = state.gamesConfig[gameId];
   if (config && config.names) {
-    for (const [poolId, poolName] of Object.entries(config.names)) {
+    for (const [poolId, name] of Object.entries(config.names)) {
       const opt = document.createElement('option');
       opt.value = poolId;
-      opt.textContent = `${poolName} (${poolId})`;
+      opt.textContent = `${name} (${poolId})`;
       select.appendChild(opt);
     }
   }
@@ -281,28 +290,46 @@ async function fetchAndRenderPity(discordId, gameId) {
     container.innerHTML = '';
 
     const banners = data.banners || {};
-    for (const [poolId, info] of Object.entries(banners)) {
-      const bannerName = info.banner_name || `Banner Pool ${poolId}`;
+    const poolIds = Object.keys(banners).filter(pid => (banners[pid].total_pulls || 0) > 0);
+
+    if (poolIds.length === 0) {
+      container.innerHTML = '<p style="color: var(--text-dim)">No pity data available.</p>';
+      return;
+    }
+
+    let total5 = 0;
+    let pitySum = 0;
+    let won5050 = 0;
+    let lost5050 = 0;
+
+    for (const pid of poolIds) {
+      const info = banners[pid];
       const pity = info.current_pity || 0;
       const maxPity = info.max_pity || 80;
       const percentage = Math.min(100, Math.round((pity / maxPity) * 100));
       const isHighPity = percentage >= 75;
+      const fiveStarCount = (info.history_5star || []).length;
+
+      total5 += fiveStarCount;
+      pitySum += (info.history_5star || []).reduce((acc, h) => acc + (h.pity || 0), 0);
+      won5050 += info.won_5050 || 0;
+      lost5050 += info.lost_5050 || 0;
 
       let badgeClass = 'not-applicable';
-      let badgeText = 'N/A';
+      let badgeText = 'No 50/50';
       if (info.is_guaranteed === true) {
         badgeClass = 'guaranteed';
-        badgeText = '✨ 100% Guaranteed';
+        badgeText = 'Guaranteed';
       } else if (info.is_guaranteed === false) {
         badgeClass = 'fifty-fifty';
-        badgeText = '🎲 50/50 Active';
+        badgeText = '50/50 Active';
       }
 
       const card = document.createElement('div');
       card.className = 'pity-card glass-panel';
       card.innerHTML = `
         <div class="pity-card-header">
-          <span class="pity-banner-name">${escapeHtml(bannerName)}</span>
+          <span class="pity-banner-name">${escapeHtml(info.name || poolName(gameId, pid))}</span>
           <span class="guarantee-badge ${badgeClass}">${badgeText}</span>
         </div>
         <div class="pity-main-metric">
@@ -313,14 +340,21 @@ async function fetchAndRenderPity(discordId, gameId) {
           <div class="progress-bar-fill ${isHighPity ? 'high-pity' : ''}" style="width: ${percentage}%"></div>
         </div>
         <div class="pity-card-footer">
-          <span>5★ count: <strong>${info.five_star_count || 0}</strong></span>
-          <span>50/50 Win: <strong>${info.win_5050_count || 0}</strong> / Loss: <strong>${info.loss_5050_count || 0}</strong></span>
+          <span>5★ count: <strong>${fiveStarCount}</strong></span>
+          <span>50/50: <strong>${info.won_5050 || 0}</strong>W / <strong>${info.lost_5050 || 0}</strong>L</span>
         </div>
       `;
       container.appendChild(card);
     }
+
+    // Header stats derived from real pity data
+    document.getElementById('stat5StarCount').textContent = total5;
+    document.getElementById('statAvgPity').textContent = total5 > 0 ? (pitySum / total5).toFixed(1) : '--';
+    const total5050 = won5050 + lost5050;
+    document.getElementById('stat4StarCount').textContent =
+      total5050 > 0 ? `${Math.round((won5050 / total5050) * 100)}%` : '--';
   } catch (err) {
-    container.innerHTML = `<p style="color: var(--text-dim)">Error loading pity: ${err.message}</p>`;
+    container.innerHTML = `<p style="color: var(--text-dim)">Error loading pity: ${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -339,53 +373,55 @@ async function fetchAndRenderStats(discordId, gameId) {
     const data = await res.json();
     container.innerHTML = '';
 
-    let total5Star = 0;
-    let total4Star = 0;
-    let totalPullsAcc = 0;
-    let sumPities = 0;
-    let pityPoints = 0;
-
     const pools = data.pools || {};
-    for (const [poolId, s] of Object.entries(pools)) {
-      total5Star += (s.char_5star || 0) + (s.weapon_5star || 0);
-      total4Star += (s.char_4star || 0) + (s.weapon_4star || 0);
-      totalPullsAcc += (s.count || 0);
-      
-      const avgPity = s.avg_pity_5star ? s.avg_pity_5star.toFixed(1) : '--';
-      const poolName = s.pool_name || `Pool ${poolId}`;
+    const poolIds = Object.keys(pools).filter(pid => pools[pid].count > 0);
 
+    if (poolIds.length === 0) {
+      container.innerHTML = '<p style="color: var(--text-dim)">No statistics available.</p>';
+      return;
+    }
+
+    for (const pid of poolIds) {
+      const s = pools[pid];
       const card = document.createElement('div');
       card.className = 'analytic-card glass-panel';
       card.innerHTML = `
-        <h4>${escapeHtml(poolName)}</h4>
+        <h4>${escapeHtml(poolName(gameId, pid))}</h4>
         <div class="pool-stat-row">
-          <span style="color: var(--text-dim)">Total Pulls</span>
-          <strong>${s.count || 0}</strong>
-        </div>
-        <div class="pool-stat-row">
-          <span style="color: var(--gold-5star)">5★ Rate / Count</span>
+          <span style="color: var(--text-dim)">5★ Pulls</span>
           <strong>${s.char_5star + s.weapon_5star} <span style="font-size: 0.8rem; color: var(--text-dim)">(${s.char_5star}C / ${s.weapon_5star}W)</span></strong>
         </div>
         <div class="pool-stat-row">
-          <span style="color: var(--purple-4star)">4★ Rate / Count</span>
-          <strong>${s.char_4star + s.weapon_4star} <span style="font-size: 0.8rem; color: var(--text-dim)">(${s.char_4star}C / ${s.weapon_4star}W)</span></strong>
+          <span style="color: var(--gold-5star)">Median Pity</span>
+          <strong>${fmt(s.median)}</strong>
         </div>
         <div class="pool-stat-row">
-          <span style="color: var(--text-dim)">Average 5★ Pity</span>
-          <strong>${avgPity}</strong>
+          <span style="color: var(--text-dim)">Min / Max Pity</span>
+          <strong>${fmt(s.min)} / ${fmt(s.max)}</strong>
         </div>
-        <div class="pool-stat-row">\n          <span style="color: var(--text-dim)">Early 5★ (&lt;=30 pity)</span>\n          <strong>${s.early_count || 0}</strong>\n        </div>
+        <div class="pool-stat-row">
+          <span style="color: var(--text-dim)">P25 – P75</span>
+          <strong>${fmt(s.p25)} – ${fmt(s.p75)}</strong>
+        </div>
+        <div class="pool-stat-row">
+          <span style="color: var(--text-dim)">Std Dev</span>
+          <strong>${fmt(s.stddev)}</strong>
+        </div>
+        <div class="pool-stat-row">
+          <span style="color: var(--purple-4star)">Early 5★ (≤30 pity)</span>
+          <strong>${s.early_count || 0}</strong>
+        </div>
       `;
       container.appendChild(card);
     }
-
-    document.getElementById('stat5StarCount').textContent = total5Star;
-    document.getElementById('stat4StarCount').textContent = total4Star;
-    document.getElementById('statAvgPity').textContent = total5Star > 0 ? (totalPullsAcc / total5Star).toFixed(1) : '--';
-
   } catch (err) {
-    container.innerHTML = `<p style="color: var(--text-dim)">Error loading analytics: ${err.message}</p>`;
+    container.innerHTML = `<p style="color: var(--text-dim)">Error loading analytics: ${escapeHtml(err.message)}</p>`;
   }
+}
+
+function fmt(value, digits = 1) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) return '--';
+  return Number(value).toFixed(digits).replace(/\.0$/, '');
 }
 
 // Fetch & Render Pulls Table
@@ -405,6 +441,9 @@ async function fetchAndRenderPulls() {
     const res = await fetch(url);
     if (!res.ok) {
       tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">No pull history.</td></tr>';
+      document.getElementById('paginationInfo').textContent = 'Showing 0 of 0 pulls';
+      document.getElementById('prevPageBtn').disabled = true;
+      document.getElementById('nextPageBtn').disabled = true;
       return;
     }
 
@@ -412,6 +451,7 @@ async function fetchAndRenderPulls() {
     state.pullsTotal = data.total || 0;
 
     let items = data.items || [];
+    // Name search applies to the loaded page only (API has no name filter)
     if (searchVal) {
       items = items.filter(p => (p.resource_name || '').toLowerCase().includes(searchVal));
     }
@@ -422,10 +462,10 @@ async function fetchAndRenderPulls() {
       tbody.innerHTML = '';
       items.forEach(p => {
         const tr = document.createElement('tr');
-        
-        let rarityClass = `rarity-${p.quality_level || 3}`;
-        let nameClass = p.quality_level === 5 ? 'gold-text' : (p.quality_level === 4 ? 'purple-text' : '');
-        
+
+        const rarityClass = `rarity-${p.quality_level || 3}`;
+        const nameClass = p.quality_level === 5 ? 'gold-text' : (p.quality_level === 4 ? 'purple-text' : '');
+
         let winText = '--';
         if (p.is_5050_win === true) winText = '<span style="color: #34d399">Won</span>';
         else if (p.is_5050_win === false) winText = '<span style="color: #ef4444">Lost</span>';
@@ -434,7 +474,7 @@ async function fetchAndRenderPulls() {
           <td><span class="rarity-pill ${rarityClass}">${p.quality_level}★</span></td>
           <td><strong class="item-name ${nameClass}">${escapeHtml(p.resource_name || 'Unknown')}</strong></td>
           <td>${escapeHtml(p.item_type || 'Unknown')}</td>
-          <td>${escapeHtml(p.card_pool_type || '--')}</td>
+          <td>${escapeHtml(poolName(state.currentGame, p.card_pool_type))}</td>
           <td><strong>${p.pity_at_pull || '--'}</strong></td>
           <td>${winText}</td>
           <td style="color: var(--text-dim); font-family: var(--font-mono); font-size: 0.8rem;">${p.time || '--'}</td>
@@ -451,7 +491,7 @@ async function fetchAndRenderPulls() {
     document.getElementById('nextPageBtn').disabled = end >= state.pullsTotal;
 
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">Error: ${err.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim);">Error: ${escapeHtml(err.message)}</td></tr>`;
   }
 }
 
@@ -469,6 +509,39 @@ async function loadUnifiedProfile(discordId) {
 
     const data = await res.json();
     const prof = data.profile || {};
+    const games = Object.values(prof.games || {});
+
+    const gameCards = games.map(g => {
+      const meta = GAME_META[g.game_id] || { name: g.game_id, icon: '\u{1F3AE}' };
+      const guarantee = g.is_guaranteed ? 'Guaranteed' : '50/50';
+      return `
+        <div class="pity-card glass-panel">
+          <div class="pity-card-header">
+            <span class="pity-banner-name">${meta.icon} ${escapeHtml(meta.name)}</span>
+          </div>
+          <div class="pool-stat-row">
+            <span style="color: var(--text-dim)">Pulls</span>
+            <strong>${(g.total_pulls || 0).toLocaleString()}</strong>
+          </div>
+          <div class="pool-stat-row">
+            <span style="color: var(--gold-5star)">5★ Count / Rate</span>
+            <strong>${g.count_5 || 0} <span style="font-size: 0.8rem; color: var(--text-dim)">(${(g.rate_5 || 0).toFixed(2)}%)</span></strong>
+          </div>
+          <div class="pool-stat-row">
+            <span style="color: var(--text-dim)">Featured Pity</span>
+            <strong>${g.featured_pity || 0} / ${g.featured_cap || '--'} <span style="font-size: 0.8rem; color: var(--text-dim)">(${guarantee})</span></strong>
+          </div>
+          <div class="pool-stat-row">
+            <span style="color: var(--purple-4star)">50/50 Record</span>
+            <strong>${g.won_5050 || 0}W / ${g.lost_5050 || 0}L</strong>
+          </div>
+          <div class="pool-stat-row">
+            <span style="color: var(--text-dim)">Avg 5★ Pity</span>
+            <strong>${g.avg_pity ? g.avg_pity.toFixed(1) : '--'}</strong>
+          </div>
+        </div>
+      `;
+    }).join('');
 
     container.innerHTML = `
       <div style="padding: 2rem;">
@@ -476,47 +549,30 @@ async function loadUnifiedProfile(discordId) {
         <div class="summary-stats-grid" style="margin-bottom: 2rem;">
           <div class="stat-box">
             <span class="stat-label">Total Pulls (All Games)</span>
-            <span class="stat-value">${prof.total_pulls || 0}</span>
+            <span class="stat-value">${(prof.total_pulls || 0).toLocaleString()}</span>
           </div>
           <div class="stat-box gold">
             <span class="stat-label">Total 5★ Items</span>
-            <span class="stat-value">${prof.total_5star || 0}</span>
+            <span class="stat-value">${prof.total_5 || 0}</span>
           </div>
           <div class="stat-box purple">
             <span class="stat-label">Total 4★ Items</span>
-            <span class="stat-value">${prof.total_4star || 0}</span>
+            <span class="stat-value">${prof.total_4 || 0}</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Lifetime 50/50 Win Rate</span>
+            <span class="stat-value">${prof.lifetime_5050_win_rate != null ? prof.lifetime_5050_win_rate.toFixed(1) + '%' : '--'}</span>
           </div>
         </div>
 
-        <h4 style="margin-bottom: 1rem; color: #cbd5e1;">Active Game Accounts:</h4>
+        <h4 style="margin-bottom: 1rem; color: #cbd5e1;">Game Accounts</h4>
         <div class="pity-cards-grid">
-          ${(prof.games || []).map(g => {
-            const meta = GAME_META[g.game_id] || { name: g.game_id, icon: '🎮' };
-            return `
-              <div class="pity-card glass-panel">
-                <div class="pity-card-header">
-                  <span class="pity-banner-name">${meta.icon} ${meta.name}</span>
-                </div>
-                <div class="pool-stat-row">
-                  <span style="color: var(--text-dim)">Pulls</span>
-                  <strong>${g.total_pulls || 0}</strong>
-                </div>
-                <div class="pool-stat-row">
-                  <span style="color: var(--gold-5star)">5★ Count</span>
-                  <strong>${g.total_5star || 0}</strong>
-                </div>
-                <div class="pool-stat-row">
-                  <span style="color: var(--purple-4star)">4★ Count</span>
-                  <strong>${g.total_4star || 0}</strong>
-                </div>
-              </div>
-            `;
-          }).join('')}
+          ${gameCards || '<p style="color: var(--text-dim)">No game data.</p>'}
         </div>
       </div>
     `;
   } catch (err) {
-    container.innerHTML = `<p style="color: var(--text-dim); padding: 2rem;">Error: ${err.message}</p>`;
+    container.innerHTML = `<p style="color: var(--text-dim); padding: 2rem;">Error: ${escapeHtml(err.message)}</p>`;
   }
 }
 
@@ -526,6 +582,7 @@ window.loadScheduleForGame = async function(gameId, targetBtn) {
     targetBtn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
     targetBtn.classList.add('active');
   }
+  state.currentGame = gameId;
 
   const container = document.getElementById('bannerScheduleContent');
   container.innerHTML = '<p style="color: var(--text-dim)">Loading banner schedule...</p>';
@@ -543,33 +600,31 @@ window.loadScheduleForGame = async function(gameId, targetBtn) {
     const active = data.active || {};
     const upcoming = data.upcoming || {};
 
-    const pools = new Set([...Object.keys(active), ...Object.keys(upcoming)]);
-    if (pools.size === 0) {
-      container.innerHTML = '<p style="color: var(--text-dim)">No active or upcoming banners listed for this game.</p>';
+    const pools = [...new Set([...Object.keys(active), ...Object.keys(upcoming)])];
+    if (pools.length === 0) {
+      container.innerHTML = '<p style="color: var(--text-dim)">No active or upcoming banners recorded for this game. Anyone can add one with the bot\'s /bannerset command.</p>';
       return;
     }
 
-    pools.forEach(poolKey => {
-      const activeBanner = active[poolKey];
-      const upcomingList = upcoming[poolKey] || [];
+    pools.forEach(pid => {
+      const activeBanner = active[pid];
+      const upcomingList = upcoming[pid] || [];
 
       const card = document.createElement('div');
-      card.className = 'banner-card glass-panel active-banner';
+      card.className = 'banner-card glass-panel' + (activeBanner ? ' active-banner' : '');
       card.innerHTML = `
-        <span class="guarantee-badge guaranteed" style="width: fit-content;">Pool: ${escapeHtml(poolKey)}</span>
-        <h4 class="banner-title">${activeBanner ? escapeHtml(activeBanner.name) : 'No Active Banner'}</h4>
+        <span class="guarantee-badge ${activeBanner ? 'guaranteed' : 'not-applicable'}" style="width: fit-content;">${escapeHtml(poolName(gameId, pid))}</span>
+        <h4 class="banner-title">${activeBanner ? escapeHtml(activeBanner.banner_name) : 'No Active Banner'}</h4>
         ${activeBanner ? `
-          <div class="banner-time">Active Window: ${activeBanner.start} ➔ ${activeBanner.end}</div>
-          <div style="color: #cbd5e1; font-size: 0.9rem; margin-top: 0.5rem;">
-            Featured: <strong>${(activeBanner.featured_5stars || []).join(', ') || 'Standard Pool'}</strong>
-          </div>
+          <div class="banner-time">Active window: ${escapeHtml(activeBanner.start_time)} → ${escapeHtml(activeBanner.end_time)}</div>
+          <div style="color: var(--text-dim); font-size: 0.75rem;">Recorded by ${escapeHtml(activeBanner.created_by)}</div>
         ` : ''}
         ${upcomingList.length > 0 ? `
           <div style="margin-top: 1rem; border-top: 1px solid var(--border-subtle); padding-top: 0.75rem;">
-            <span style="font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase;">Upcoming:</span>
+            <span style="font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase;">Upcoming</span>
             ${upcomingList.map(u => `
               <div style="font-size: 0.85rem; margin-top: 0.25rem;">
-                <strong>${escapeHtml(u.name)}</strong> <span style="color: var(--text-dim)">(${u.start})</span>
+                <strong>${escapeHtml(u.banner_name)}</strong> <span style="color: var(--text-dim)">(${escapeHtml(u.start_time)} → ${escapeHtml(u.end_time)})</span>
               </div>
             `).join('')}
           </div>
@@ -579,7 +634,7 @@ window.loadScheduleForGame = async function(gameId, targetBtn) {
     });
 
   } catch (err) {
-    container.innerHTML = `<p style="color: var(--text-dim)">Error loading schedule: ${err.message}</p>`;
+    container.innerHTML = `<p style="color: var(--text-dim)">Error loading schedule: ${escapeHtml(err.message)}</p>`;
   }
 };
 
