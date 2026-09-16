@@ -13,19 +13,19 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 
 ---
 
-## 🌟 Features
+## Features
 
-- 🧩 **Modular Plugin Architecture**: Game-specific mechanics (API fetching, pity rules, banner pools) are decoupled from the core engine.
-- 📊 **Visual Distribution Graphs (`/chart`)**: Generates custom dark-themed pity bar graphs with color-coded 50/50 win/loss markers and soft/hard pity thresholds.
-- 🎯 **Accurate Pity & 50/50 Tracking**: Automatically tracks current pity, total pulls, and 50/50 win/loss history (identifying standard vs. featured Resonators).
-- 💰 **Astrite & Pull Cost Calculator (`/calculate`)**: Calculates best-case, average-case, and worst-case pull and Astrite cost scenarios.
-- 💾 **Idempotent Local Storage**: Merges history records into a local SQLite database without creating duplicate entries.
-- 🎙️ **24/7 Voice Channel Connection**: Auto-connects and auto-reconnects to designated Discord Voice Channels with self-deafen bandwidth optimization.
-- 🎨 **Clean & Emoji-Free Interface**: Modern, professional Discord embeds formatted with ASCII text tables.
+- **Modular Plugin Architecture**: Game-specific mechanics (API fetching, pity rules, banner pools) are decoupled from the core engine.
+- **Visual Distribution Graphs (`/chart`)**: Generates custom dark-themed pity bar graphs with color-coded 50/50 win/loss markers and soft/hard pity thresholds.
+- **Accurate Pity & 50/50 Tracking**: Automatically tracks current pity, total pulls, and 50/50 win/loss history (identifying standard vs. featured Resonators).
+- **Astrite & Pull Cost Calculator (`/calculate`)**: Calculates best-case, average-case, and worst-case pull and Astrite cost scenarios.
+- **Idempotent Local Storage**: Merges history records into a local SQLite database without creating duplicate entries.
+- **24/7 Voice Channel Connection**: Auto-connects and auto-reconnects to designated Discord Voice Channels with self-deafen bandwidth optimization.
+- **Clean & Emoji-Free Interface**: Modern, professional Discord embeds formatted with ASCII text tables.
 
 ---
 
-## 🏗️ Architecture Overview
+## Architecture Overview
 
 ```text
                         GachaTracker Framework
@@ -52,7 +52,7 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - **Python 3.10+**
@@ -62,8 +62,8 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 
 1. **Clone the Repository**
    ```bash
-   git clone https://github.com/your-username/discord-tracker.git
-   cd discord-tracker/gacha_tracker
+   git clone https://github.com/PikriNtr/GachaTracker.git
+   cd GachaTracker
    ```
 
 2. **Install Dependencies**
@@ -78,10 +78,10 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
    DISCORD_TOKEN=your_bot_token_here
 
    # Optional: Server (Guild) IDs for instant command sync (comma-separated)
-   GUILD_ID=123456789012345678,987654321098765432
+   GUILD_ID=fill_guild_ID_here,fill_guild_ID_here
 
    # Optional: Voice Channel ID for 24/7 staying
-   VOICE_CHANNEL_ID=123456789012345678
+   VOICE_CHANNEL_ID=fill_voice_channel_ID_here
    ```
 
 4. **Launch the Bot**
@@ -91,7 +91,7 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 
 ---
 
-## 📜 Discord Slash Commands
+## Discord Slash Commands
 
 All gacha commands accept an optional `game` option (Wuthering Waves / Genshin Impact / Honkai: Star Rail); they default to Wuthering Waves.
 
@@ -114,7 +114,7 @@ All gacha commands accept an optional `game` option (Wuthering Waves / Genshin I
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```text
 discord-tracker/
@@ -168,12 +168,11 @@ discord-tracker/
 │   ├── .env.example             # Environment template
 │   ├── requirements.txt         # Python dependencies
 │   └── README.md                # Project documentation
-└── legacy/                      # Archived original single-file bot (not in repo)
 ```
 
 ---
 
-## 🗺️ Roadmap Highlights
+## Roadmap Highlights
 
 - [x] **v0.1 — WuWa MVP & Core Abstraction**: Modular plugin framework, SQLite persistence, pity engine, Discord bot.
 - [x] **v0.2 — Advanced Analytics & 50/50 Calculator**: Astrite cost calculator, standard 5-star detection, 50/50 guarantee tracking.
@@ -184,7 +183,7 @@ discord-tracker/
 
 ---
 
-## 🌐 REST API (Phase 11)
+## REST API (Phase 11)
 
 The core is also exposed as a standalone HTTP service — same engines, same SQLite DB:
 
@@ -212,7 +211,7 @@ the key too. Interactive docs: `http://localhost:8000/docs`.
 
 ---
 
-## 🔒 Security & Privacy
+## Security & Privacy
 
 - **No Password Collection**: The bot only uses temporary, official Convene history URLs generated in-game.
 - **Privacy-First Import**: `/import` responses are strictly `ephemeral` (visible only to the command invoker).
@@ -220,6 +219,6 @@ the key too. Interactive docs: `http://localhost:8000/docs`.
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.
