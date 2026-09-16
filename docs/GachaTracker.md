@@ -972,11 +972,11 @@ The `.env` file should be included in `.gitignore`.
 
 ## Phase 0 — Planning
 
-- [ ] Define architecture
-- [ ] Define plugin interface
-- [ ] Define normalized data model
-- [ ] Define database schema
-- [ ] Define testing strategy
+- [x] Define architecture (see ARCHITECTURE.md)
+- [x] Define plugin interface (`core/game.py` — `GachaGame` ABC)
+- [x] Define normalized data model (`core/models.py` — `Pull`, `Banner`, `GameAccount`)
+- [x] Define database schema (`database/repository.py`)
+- [x] Define testing strategy (pytest suite in `tests/`)
 
 ---
 
@@ -984,13 +984,13 @@ The `.env` file should be included in `.gitignore`.
 
 Use the existing WuWa tracker as the initial implementation.
 
-- [ ] Refactor existing bot
-- [ ] Separate Discord commands
-- [ ] Separate WuWa API client
-- [ ] Separate history parser
-- [ ] Create core gacha models
-- [ ] Implement pity calculation
-- [ ] Implement SQLite storage
+- [x] Refactor existing bot
+- [x] Separate Discord commands
+- [x] Separate WuWa API client
+- [x] Separate history parser
+- [x] Create core gacha models
+- [x] Implement pity calculation
+- [x] Implement SQLite storage
 
 ### Goal
 
@@ -1000,12 +1000,12 @@ Have the existing WuWa tracker running on top of the new GachaTracker architectu
 
 # Phase 2 — Plugin Architecture
 
-- [ ] Create `GachaGame`
-- [ ] Create normalized pull model
-- [ ] Create banner interface
-- [ ] Create plugin registry
-- [ ] Implement plugin loading
-- [ ] Move WuWa functionality into its own plugin
+- [x] Create `GachaGame`
+- [x] Create normalized pull model
+- [x] Create banner interface
+- [x] Create plugin registry
+- [x] Implement plugin loading
+- [x] Move WuWa functionality into its own plugin
 
 ### Goal
 
@@ -1015,14 +1015,14 @@ The core system should no longer depend directly on Wuthering Waves.
 
 # Phase 3 — Analytics
 
-- [ ] Average pity
-- [ ] Median pity
-- [ ] Pity distribution
-- [ ] Early pull statistics
-- [ ] 50/50 statistics
-- [ ] Banner statistics
-- [ ] Luck percentile
-- [ ] Monte Carlo simulation
+- [x] Average pity
+- [x] Median pity
+- [x] Pity distribution
+- [x] Early pull statistics
+- [x] 50/50 statistics
+- [x] Banner statistics
+- [x] Luck percentile
+- [x] Monte Carlo simulation
 
 ### Goal
 
@@ -1065,12 +1065,12 @@ Determine whether ML provides useful information beyond traditional statistical 
 
 # Phase 6 — Web Dashboard
 
-- [ ] REST API
-- [ ] Authentication
-- [ ] Dashboard
-- [ ] Interactive charts
-- [ ] Pull history viewer
-- [ ] Pity visualization
+- [x] REST API
+- [x] Authentication
+- [x] Dashboard
+- [x] Interactive charts
+- [x] Pull history viewer
+- [x] Pity visualization
 
 ### Goal
 
@@ -1475,32 +1475,32 @@ Large Monte Carlo simulations can be moved to background workers.
 
 ## MVP
 
-- [ ] WuWa history can be imported
-- [ ] Pull history is stored
-- [ ] Pity is calculated correctly
-- [ ] Discord commands work
-- [ ] Basic statistics are available
+- [x] WuWa history can be imported
+- [x] Pull history is stored
+- [x] Pity is calculated correctly
+- [x] Discord commands work
+- [x] Basic statistics are available
 
 ## Framework
 
-- [ ] Game plugins are isolated
-- [ ] Core does not depend on a specific game
-- [ ] A second game can be added cleanly
-- [ ] Plugin documentation exists
+- [x] Game plugins are isolated
+- [x] Core does not depend on a specific game
+- [x] A second game can be added cleanly
+- [x] Plugin documentation exists (docs/PLUGIN_DEVELOPMENT.md)
 
 ## Analytics
 
-- [ ] Pity distribution
-- [ ] Luck analysis
-- [ ] Monte Carlo simulation
-- [ ] Statistical explanations
+- [x] Pity distribution
+- [x] Luck analysis
+- [x] Monte Carlo simulation
+- [x] Statistical explanations
 
 ## Advanced
 
 - [ ] ML experimentation
-- [ ] Web dashboard
+- [x] Web dashboard
 - [ ] External plugin support
-- [ ] Public API
+- [x] Public API
 
 ---
 
@@ -1556,16 +1556,14 @@ A small, well-designed Wuthering Waves implementation is preferable to a large u
 
 # Project Status
 
-**Status:** Planning / Early Development
+**Status:** Multi-game platform shipped — Discord bot (3 games), REST API, and web dashboard live; see `ROADMAP.md` for the current phase list.
 
 ### Current Focus
 
-- Architecture design
-- Wuthering Waves plugin
-- Core gacha models
-- History importing
-- Pity calculation
-- Database design
+- Zenless Zone Zero plugin (closes Phase 8)
+- Machine learning research (Phase 10)
+- External plugin system (Phase 13)
+- Production infrastructure (Phase 14)
 
 ### Planned
 
