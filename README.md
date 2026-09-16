@@ -241,6 +241,7 @@ Once the server is running, visit:
 
 Reads are open by default; set `API_REQUIRE_KEY_FOR_READS=1` to gate them behind the key too.
 
+
 ---
 
 ## Security & Privacy
