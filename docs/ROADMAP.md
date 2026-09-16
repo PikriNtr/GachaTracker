@@ -43,7 +43,7 @@ Establish the repository and development foundation.
 
 ### Tasks
 
-- [ ] Create GitHub repository
+- [x] Create GitHub repository (github.com/PikriNtr/GachaTracker)
 - [x] Create project structure
 - [x] Add `README.md`
 - [x] Add `ARCHITECTURE.md`
@@ -52,7 +52,7 @@ Establish the repository and development foundation.
 - [x] Add `.gitignore`
 - [x] Add `pyproject.toml`
 - [x] Choose license
-- [ ] Configure formatting/linting
+- [x] Configure formatting/linting (ruff — see pyproject.toml)
 - [x] Configure pytest
 
 ### Result
@@ -175,15 +175,15 @@ Turn GachaTracker into an analytics system rather than just a history viewer.
 - [x] 5★ count
 - [x] 4★ count
 - [x] Average pity
-- [ ] Median pity
-- [ ] Minimum pity
-- [ ] Maximum pity
-- [ ] Standard deviation
+- [x] Median pity (`analytics/deep_stats.py`)
+- [x] Minimum pity (`analytics/deep_stats.py`)
+- [x] Maximum pity (`analytics/deep_stats.py`)
+- [x] Standard deviation (`analytics/deep_stats.py`)
 - [x] Banner statistics
-- [ ] Character statistics
-- [ ] Weapon statistics
+- [x] Character statistics (`deep_stats.char_5star`)
+- [x] Weapon statistics (`deep_stats.weapon_5star`)
 - [x] 50/50 statistics
-- [ ] Early 5★ statistics
+- [x] Early 5★ statistics (`deep_stats.early_count`, threshold ≤30)
 
 ### Success Criteria
 
@@ -200,10 +200,11 @@ Make statistics easier to understand.
 ### Tasks
 
 - [x] Pity distribution
-- [ ] Pull timeline
-- [ ] Banner comparison
-- [ ] Rarity distribution
-- [ ] 5★ interval chart
+- [x] Pull timeline (`/chart type:Pull Timeline`)
+- [x] Banner comparison (`/chart type:Banner Comparison`)
+- [x] Rarity distribution (`/chart type:Rarity Distribution`)
+- [x] 5★ interval chart (covered by Pull Timeline — each 5★ marker shows its pity, i.e. the interval since the previous 5★)
+- [x] Banner schedule Gantt (`/chart type:Banner Schedule`)
 - [x] Luck percentile visualization
 - [x] Discord image/chart generation
 
@@ -534,17 +535,17 @@ Potential architecture:
 
 ## v0.6 — API
 
-- [ ] REST API
-- [ ] Authentication
-- [ ] API documentation
+- [x] REST API (FastAPI, `api/` package, shipped Phase 11)
+- [x] Authentication (X-API-Key for writes, optional key-gating for reads)
+- [x] API documentation (Swagger at `/docs`, ReDoc at `/redoc`)
 
 ---
 
 ## v0.7 — Dashboard
 
-- [ ] Web dashboard
-- [ ] Charts
-- [ ] Account management
+- [x] Web dashboard (`api/static/`, served by the API at `/`)
+- [x] Charts (interactive, per-game tabs)
+- [x] Account management (Discord-ID lookup, `?id=` URL parameter)
 
 ---
 
@@ -671,21 +672,22 @@ The evolution should look like:
 
 # Current Focus
 
-Phases 0–9 are complete: four-command multi-game Discord experience
-(import/pity/stats/history/chart/simulate/profile/forget), three live game
+Phases 0–9 and 11–12 are complete: multi-game Discord experience
+(import/pity/stats/history/chart/simulate/profile/forget/banners), three live game
 plugins (Wuthering Waves, Genshin Impact, Honkai: Star Rail), per-game pity
 and probability models, idempotent imports with api-based deduplication,
-deep statistics, visualization suite, and a 75-test pytest suite.
+deep statistics, a full visualization suite (including the banner-schedule
+Gantt), the REST API (Phase 11), and the interactive web dashboard (Phase 12).
 
-The immediate priority is the REST API (Phase 11) — separating the core from
-the Discord interface to enable the web dashboard.
+The remaining phases are 8's last game (Zenless Zone Zero), 10 (ML research),
+13 (external plugin system), and 14 (production infrastructure).
 
 ---
 
 # Status
 
-**Current Stage:** Multi-game platform (Phases 0–9 complete)
+**Current Stage:** Multi-game platform with API + dashboard (Phases 0–9, 11–12 complete)
 
-**Current Target:** v0.6 — REST API / Web Dashboard
+**Current Target:** v1.0 — Platform (ZZZ plugin, ML research, external plugins, production infra)
 
-**Next Major Milestone:** REST API separating core from Discord
+**Next Major Milestone:** Zenless Zone Zero plugin (closes Phase 8) or production infrastructure (Phase 14)
