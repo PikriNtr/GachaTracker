@@ -15,7 +15,6 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 
 ## Features
 
-<<<<<<< HEAD
 - **Modular Plugin Architecture**: Game-specific mechanics (API fetching, pity rules, banner pools) are decoupled from the core engine.
 - **Visual Distribution Graphs (`/chart`)**: Generates custom dark-themed pity bar graphs with color-coded 50/50 win/loss markers and soft/hard pity thresholds.
 - **Accurate Pity & 50/50 Tracking**: Automatically tracks current pity, total pulls, and 50/50 win/loss history (identifying standard vs. featured Resonators).
@@ -23,15 +22,6 @@ Built around a **modular plugin architecture**, game-specific API integrations, 
 - **Idempotent Local Storage**: Merges history records into a local SQLite database without creating duplicate entries.
 - **24/7 Voice Channel Connection**: Auto-connects and auto-reconnects to designated Discord Voice Channels with self-deafen bandwidth optimization.
 - **Clean & Emoji-Free Interface**: Modern, professional Discord embeds formatted with ASCII text tables.
-=======
-* **Modular Plugin Architecture**: Game-specific mechanics (API fetching, pity rules, banner pools) are decoupled from the core engine.
-* **Visual Distribution Graphs (`/chart`)**: Generates custom dark-themed pity bar graphs with color-coded 50/50 win/loss markers and soft/hard pity thresholds.
-* **Accurate Pity & 50/50 Tracking**: Automatically tracks current pity, total pulls, and 50/50 win/loss history (identifying standard vs. featured Resonators).
-* **Astrite & Pull Cost Calculator (`/calculate`)**: Calculates best-case, average-case, and worst-case pull and Astrite cost scenarios.
-* **Idempotent Local Storage**: Merges history records into a local SQLite database without creating duplicate entries.
-* **24/7 Voice Channel Connection**: Auto-connects and auto-reconnects to designated Discord Voice Channels with self-deafen bandwidth optimization.
-* **Clean & Emoji-Free Interface**: Modern, professional Discord embeds formatted with ASCII text tables.
->>>>>>> 0c35a6ad110dd13d9d9358b9e38766a26abfa4b2
 
 ---
 
@@ -197,7 +187,7 @@ discord-tracker/
 * [x] **v0.3 — Visual Charting & Voice Support**: Matplotlib image graph generation (`/chart`), 24/7 Voice Channel auto-reconnect.
 * [x] **v0.4 — Monte Carlo Luck Simulation**: Compare player pity distributions against 10,000 simulated players to calculate statistical percentiles.
 * [x] **v0.5 — Multi-Game Plugins**: Genshin Impact & Honkai: Star Rail plugins via the registry; per-game probability models (`/simulate`), game-aware charts and embeds, shared HoYoverse API client.
-* [ ] **v0.6 — Web Dashboard & REST API**: Standalone FastAPI service and interactive web dashboard.
+* [x] **v0.6 — Web Dashboard & REST API**: Standalone FastAPI service and interactive web dashboard.
 
 ---
 
