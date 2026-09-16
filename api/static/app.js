@@ -374,10 +374,7 @@ async function fetchAndRenderStats(discordId, gameId) {
           <span style="color: var(--text-dim)">Average 5★ Pity</span>
           <strong>${avgPity}</strong>
         </div>
-        <div class="pool-stat-row">
-          <span style="color: var(--text-dim)">Early 5★ (&lt;50 pity)</span>
-          <strong>${s.early_5star_count || 0}</strong>
-        </div>
+        <div class="pool-stat-row">\n          <span style="color: var(--text-dim)">Early 5★ (&lt;=30 pity)</span>\n          <strong>${s.early_count || 0}</strong>\n        </div>
       `;
       container.appendChild(card);
     }
