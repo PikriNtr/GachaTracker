@@ -371,13 +371,13 @@ Separate the GachaTracker core from the Discord interface.
 
 ### Tasks
 
-- [ ] Create FastAPI application
-- [ ] Authentication
-- [ ] Account endpoints
-- [ ] Pull endpoints
-- [ ] Statistics endpoints
-- [ ] Pity endpoints
-- [ ] API documentation
+- [x] Create FastAPI application
+- [x] Authentication
+- [x] Account endpoints
+- [x] Pull endpoints
+- [x] Statistics endpoints
+- [x] Pity endpoints
+- [x] API documentation
 
 Possible endpoints:
 
@@ -400,14 +400,14 @@ Provide a visual interface for users.
 
 ### Tasks
 
-- [ ] Dashboard design
-- [ ] Account overview
-- [ ] Pull history
-- [ ] Pity visualization
-- [ ] Banner statistics
-- [ ] Luck analysis
-- [ ] Interactive charts
-- [ ] Responsive design
+- [x] Dashboard design
+- [x] Account overview
+- [x] Pull history
+- [x] Pity visualization
+- [x] Banner statistics
+- [x] Luck analysis
+- [x] Interactive charts
+- [x] Responsive design
 
 Architecture:
 

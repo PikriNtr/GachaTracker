@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GachaTracker — Multi-Game Analytics Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app-background">
+    <div class="bg-glow bg-glow-1"></div>
+    <div class="bg-glow bg-glow-2"></div>
+    <div class="bg-glow bg-glow-3"></div>
+  </div>
+
+  <header class="navbar">
+    <div class="nav-brand">
+      <div class="brand-icon">✦</div>
+      <div class="brand-text">
+        <span class="brand-title">GachaTracker</span>
+        <span class="brand-badge">v0.6 API</span>
+      </div>
+    </div>
+
+    <div class="nav-actions">
+      <div class="status-indicator online" id="apiStatusBadge">
+        <span class="status-dot"></span>
+        <span class="status-label" id="apiStatusText">API Connected</span>
+      </div>
+      <a href="/docs" target="_blank" class="btn btn-glass btn-sm">
+        <span>Swagger API Docs</span>
+        <span class="btn-arrow">↗</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="dashboard-container">
+    <!-- User Lookup Bar -->
+    <section class="user-search-panel">
+      <div class="search-box">
+        <div class="search-input-group">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="discordIdInput" placeholder="Enter Discord ID (e.g., 123456789012345678)" autocomplete="off">
+        </div>
+        <button id="searchBtn" class="btn btn-primary">
+          <span>Load Account</span>
+        </button>
+      </div>
+
+      <div class="quick-tags" id="recentAccountsList">
+        <span class="tag-label">Sample / Recent:</span>
+        <button class="chip" onclick="quickLookup('d1')">User d1 (Test User)</button>
+      </div>
+    </section>
+
+    <!-- Notification Toast / Error Banner -->
+    <div id="alertBanner" class="alert-banner hidden">
+      <span id="alertMessage"></span>
+      <button class="alert-close" onclick="closeAlert()">✕</button>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <nav class="game-tabs" id="gameNavTabs">
+      <button class="tab-btn active" data-tab="wuthering_waves">
+        <span class="tab-icon">🌊</span>
+        <span class="tab-name">Wuthering Waves</span>
+      </button>
+      <button class="tab-btn" data-tab="genshin_impact">
+        <span class="tab-icon">🌌</span>
+        <span class="tab-name">Genshin Impact</span>
+      </button>
+      <button class="tab-btn" data-tab="honkai_star_rail">
+        <span class="tab-icon">🚂</span>
+        <span class="tab-name">Honkai: Star Rail</span>
+      </button>
+      <button class="tab-btn" data-tab="unified_profile">
+        <span class="tab-icon">🌐</span>
+        <span class="tab-name">Cross-Game Profile</span>
+      </button>
+      <button class="tab-btn" data-tab="banner_schedule">
+        <span class="tab-icon">📅</span>
+        <span class="tab-name">Live Banners</span>
+      </button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div id="contentArea">
+      <!-- Loading State -->
+      <div id="loadingSpinner" class="loading-state hidden">
+        <div class="spinner"></div>
+        <p>Fetching gacha records & calculating pity...</p>
+      </div>
+
+      <!-- Welcome / Empty State -->
+      <div id="welcomeState" class="welcome-card">
+        <div class="welcome-icon">✨</div>
+        <h2>Welcome to GachaTracker Dashboard</h2>
+        <p>Enter a Discord ID above or choose a sample account to view real-time pity counters, 50/50 guarantees, multi-game analytics, and pull logs.</p>
+        <div class="welcome-features">
+          <div class="feature-pill">
+            <span class="pill-icon">📊</span>
+            <div>
+              <strong>Pity Summary</strong>
+              <span>Exact pity count and guarantee prediction</span>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <span class="pill-icon">🎯</span>
+            <div>
+              <strong>50/50 Tracker</strong>
+              <span>Win-rate history and luck distribution</span>
+            </div>
+          </div>
+          <div class="feature-pill">
+            <span class="pill-icon">📜</span>
+            <div>
+              <strong>History Explorer</strong>
+              <span>Searchable & filterable pull logs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Game Dashboard View (for WuWa, Genshin, HSR) -->
+      <div id="gameDashboardView" class="hidden">
+        <!-- Account Overview Header Card -->
+        <section class="account-header-card glass-panel">
+          <div class="account-info">
+            <div class="avatar-badge" id="gameAvatarBadge">🎮</div>
+            <div>
+              <h2 id="viewGameTitle">Wuthering Waves</h2>
+              <div class="account-meta">
+                <span class="meta-tag">UID: <strong id="playerUidLabel">--</strong></span>
+                <span class="meta-tag">Discord ID: <span id="discordIdLabel">--</span></span>
+              </div>
+            </div>
+          </div>
+          <div class="summary-stats-grid">
+            <div class="stat-box">
+              <span class="stat-label">Total Pulls</span>
+              <span class="stat-value" id="statTotalPulls">0</span>
+            </div>
+            <div class="stat-box gold">
+              <span class="stat-label">5★ Items</span>
+              <span class="stat-value" id="stat5StarCount">0</span>
+            </div>
+            <div class="stat-box purple">
+              <span class="stat-label">4★ Items</span>
+              <span class="stat-value" id="stat4StarCount">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-label">Avg 5★ Pity</span>
+              <span class="stat-value" id="statAvgPity">--</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Pity Counters Section -->
+        <section class="section-block">
+          <div class="section-header">
+            <h3>🎯 Pity & Guarantee Status</h3>
+            <span class="section-subtitle">Real-time pity tracking per banner pool</span>
+          </div>
+          <div class="pity-cards-grid" id="pityCardsContainer">
+            <!-- Dynamically populated pity cards -->
+          </div>
+        </section>
+
+        <!-- Deep Analytics Breakdown Section -->
+        <section class="section-block">
+          <div class="section-header">
+            <h3>📈 Deep Analytics & Rarity Breakdown</h3>
+            <span class="section-subtitle">Statistical breakdown across banner pools</span>
+          </div>
+          <div class="analytics-grid" id="analyticsContainer">
+            <!-- Dynamically populated analytics -->
+          </div>
+        </section>
+
+        <!-- Pull History Table Section -->
+        <section class="section-block">
+          <div class="section-header">
+            <h3>📜 Pull History Explorer</h3>
+            <div class="table-filters">
+              <select id="poolFilterSelect" class="input-select">
+                <option value="">All Banner Pools</option>
+              </select>
+              <select id="rarityFilterSelect" class="input-select">
+                <option value="">All Rarities</option>
+                <option value="5">5★ Legendary</option>
+                <option value="4">4★ Epic</option>
+                <option value="3">3★ Rare</option>
+              </select>
+              <input type="text" id="pullSearchInput" class="input-search" placeholder="Search item name...">
+            </div>
+          </div>
+
+          <div class="table-card glass-panel">
+            <div class="table-responsive">
+              <table class="pulls-table">
+                <thead>
+                  <tr>
+                    <th>Rarity</th>
+                    <th>Item Name</th>
+                    <th>Type</th>
+                    <th>Banner Pool</th>
+                    <th>Pity Count</th>
+                    <th>50/50</th>
+                    <th>Date & Time</th>
+                  </tr>
+                </thead>
+                <tbody id="pullsTableBody">
+                  <!-- Dynamically populated pulls -->
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Table Pagination -->
+            <div class="pagination-bar">
+              <span class="pagination-info" id="paginationInfo">Showing 0 of 0 pulls</span>
+              <div class="pagination-buttons">
+                <button id="prevPageBtn" class="btn btn-sm btn-glass" disabled>Previous</button>
+                <button id="nextPageBtn" class="btn btn-sm btn-glass" disabled>Next</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <!-- Unified Profile View -->
+      <div id="unifiedProfileView" class="hidden">
+        <section class="section-block">
+          <div class="section-header">
+            <h3>🌐 Unified Cross-Game Profile</h3>
+            <span class="section-subtitle">Aggregated metrics across all supported games</span>
+          </div>
+          <div id="unifiedProfileContent" class="glass-panel profile-container">
+            <!-- Dynamically filled -->
+          </div>
+        </section>
+      </div>
+
+      <!-- Live Banner Schedule View -->
+      <div id="bannerScheduleView" class="hidden">
+        <section class="section-block">
+          <div class="section-header">
+            <h3>📅 Live & Upcoming Banner Schedule</h3>
+            <div class="schedule-game-selector">
+              <button class="btn btn-sm btn-glass active" onclick="loadScheduleForGame('wuthering_waves', this)">WuWa</button>
+              <button class="btn btn-sm btn-glass" onclick="loadScheduleForGame('genshin_impact', this)">Genshin</button>
+              <button class="btn btn-sm btn-glass" onclick="loadScheduleForGame('honkai_star_rail', this)">Star Rail</button>
+            </div>
+          </div>
+          <div id="bannerScheduleContent" class="schedule-grid">
+            <!-- Dynamically filled -->
+          </div>
+        </section>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-content">
+      <span>GachaTracker v0.6 • Multi-Game REST API & Dashboard</span>
+      <div class="footer-links">
+        <a href="/docs" target="_blank">API Docs</a>
+        <a href="/redoc" target="_blank">ReDoc</a>
+        <a href="/health" target="_blank">Health Check</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

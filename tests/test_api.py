@@ -45,6 +45,11 @@ def client(monkeypatch, tmp_path):
         yield c
 
 
+def test_root_endpoint(client):
+    r = client.get("/")
+    assert r.status_code == 200
+
+
 def test_health(client):
     r = client.get("/health")
     assert r.status_code == 200 and r.json() == {"status": "ok"}
